@@ -1,13 +1,19 @@
-const bcrypt = require('bcrypt');
-const Usuario = require('../entities/Usuario');
-const { UsuarioRepository } = require('../repositories/UsuarioRepository');
+import Usuario from '../entities/usuario.js';
+import * as usuarioRepositorio from '../repositories/usuarioRepositorio.js';
 
-
-async function CrearCuenta({ cedula, nombre, correo, contrasena, rol }) {
-  const contrasenaSegura = await bcrypt.hash(contrasena, 10);
-  const usuario = new Usuario({ identificacion: cedula, nombre, correo, contrasena: contrasenaSegura, rol });
-  console.log('Creando cuenta para usuario:', usuario);
-  return UsuarioRepository.create(usuario);
+async function crearCuenta({ cedula, nombre, correo, contrasena, rol }) {
+  // TODO: validar formato de cedula
+  // TODO: verificar que el correo no exista ya
+  
+  const usuario = new Usuario({
+    identificacion: cedula,
+    nombre,
+    correo,
+    contrasena,  // se guarda directo por ahora
+    rol
+  });
+  
+  return usuarioRepositorio.crear(usuario);
 }
 
-module.exports = CrearCuenta;
+export default crearCuenta;

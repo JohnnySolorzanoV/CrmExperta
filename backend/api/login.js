@@ -1,18 +1,17 @@
-const express = require('express');
-const Login = require('../use_cases/login');
+import express from 'express';
+import login from '../use_cases/login.js';
 
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
-  console.log('Recibida solicitud de login con datos:', req.body);
   try {
     const { correo, contrasena } = req.body;
-    const usuario = await Login({ correo, contrasena });
-    res.status(200).json({ message: 'Login exitoso', usuario });
+    const usuario = await login({ correo, contrasena });
+    res.json({ mensaje: 'Login exitoso', usuario });
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('Error en login:', error.message);
     res.status(401).json({ error: error.message });
   }
 });
 
-module.exports = router;
+export default router;

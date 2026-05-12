@@ -1,19 +1,21 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { UsuarioRepository } = require('../repositories/UsuarioRepository');
+import * as usuarioRepositorio from '../repositories/usuarioRepositorio.js';
 
-async function Login({ correo, contrasena }) {
-  const usuario = await UsuarioRepository.findByCorreo(correo);
+// TODO: implementar JWT más adelante
+
+async function login({ correo, contrasena }) {
+  const usuario = await usuarioRepositorio.buscarPorCorreo(correo);
+  
   if (!usuario) {
     throw new Error('Usuario no encontrado');
   }
-  const contrasenaValida = await bcrypt.compare(contrasena, usuario.contrasena);
-  if (!contrasenaValida) {
+  
+  // comparacion directa por ahora
+  // TODO: hashear contraseñas en el futuro
+  if (contrasena !== usuario.contrasena) {
     throw new Error('Contraseña incorrecta');
   }
-  const token = jwt.sign({ cedula: usuario.cedula, rol: usuario.rol }, 'secreto', { expiresIn: '1h' });
-  usuario.token = token;
+  
   return usuario;
 }
 
-module.exports = Login;
+export default login;

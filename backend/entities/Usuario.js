@@ -1,4 +1,4 @@
-class Usuario {
+export class Usuario {
   constructor({ id, identificacion, cedula, nombre, correo, contrasena, rol }) {
     this.id = id;
     this.identificacion = identificacion || cedula;
@@ -9,5 +9,3 @@ class Usuario {
     this.rol = rol;
   }
 }
-
-module.exports = Usuario;

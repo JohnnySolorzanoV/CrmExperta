@@ -1,24 +1,21 @@
-const Cita = require('../entities/Cita');
-const { citaRepository } = require('../repositories/citaRepositorio');
+import Cita from '../entities/cita.js';
+import * as citaRepositorio from '../repositories/citaRepositorio.js';
 
-async function AgendarCita({ fecha, hora, paciente_cedula, doctor_cedula }) {
-  // Validar que todos los parámetros requeridos estén presentes
-  if (!fecha || !hora || !paciente_cedula || !doctor_cedula) {
-    throw new Error('Todos los campos son requeridos: fecha, hora, paciente_cedula, doctor_cedula');
+async function agendarCita({ idCliente, idAbogado, fecha, hora, motivo }) {
+  if (!idCliente || !idAbogado || !fecha) {
+    throw new Error('Faltan datos requeridos para la cita');
   }
-
-  // Crear nueva instancia de Cita
-  const nuevaCita = new Cita({
+  
+  const cita = new Cita({
+    idCliente,
+    idAbogado,
     fecha,
     hora,
-    paciente_cedula,
-    doctor_cedula,
+    motivo,
+    estado: 'pendiente'
   });
-
-  console.log('Agendando cita:', nuevaCita);
-
-  // Guardar la cita en la base de datos
-  return citaRepository.create(nuevaCita);
+  
+  return citaRepositorio.crear(cita);
 }
 
-module.exports = AgendarCita;
+export default agendarCita;

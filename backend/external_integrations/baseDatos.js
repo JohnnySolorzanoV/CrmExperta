@@ -1,34 +1,45 @@
-const { Pool } = require('pg');
+import { Pool } from 'pg';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:admin1234@localhost:5432/crm_experta',
+const DEV_PORT = 5433;
+const DEV_DB_NAME = 'crm_experta';
+const DEV_DB_USER = 'postgres';
+const DEV_DB_PASSWORD = 'admin1234';
+
+// En producción, se espera que DATABASE_URL esté configurada en las variables de entorno
+const connectionString = process.env.DATABASE_URL || `postgres://${DEV_DB_USER}:${DEV_DB_PASSWORD}@localhost:${DEV_PORT}/${DEV_DB_NAME}`;
+
+export const pool = new Pool({
+  connectionString,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-async function connect() {
-  return pool.connect();
-}
-
-async function executeSQL(text, params = []) {
-  const client = await connect();
+// ejecutar consultas sql
+export async function ejecutarSQL(texto, params = []) {
+  let conexion = null;
   try {
-    return await client.query(text, params);
+    if (process.env.NODE_ENV === 'development') {
+      console.log({ texto, params });
+    }
+
+    // validar que el texto no esté vacío
+    if (!texto) {
+      throw new Error('El texto de la consulta SQL no puede estar vacío');
+    }
+
+    conexion = await pool.connect();
+    return await conexion.query(texto, params);
   } finally {
-    client.release();
+    if (conexion) conexion.release();
   }
 }
 
-async function testConnection() {
-  const client = await connect();
+export async function probarConexion() {
+  let conexion = null;
   try {
-    await client.query('SELECT 1');
+    conexion = await pool.connect();
+    await conexion.query('SELECT 1');
+    console.log('conexion a bd exitosa');
   } finally {
-    client.release();
+    if (conexion) conexion.release();
   }
 }
-
-module.exports = {
-  connect,
-  executeSQL,
-  testConnection,
-  pool,
-};

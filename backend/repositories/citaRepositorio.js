@@ -1,53 +1,68 @@
-const cita = require('../entities/Cita');
-const { executeSQL } = require('../external_integrations/baseDatos');
+import Cita from '../entities/cita.js';
+import { ejecutarSQL } from '../external_integrations/baseDatos.js';
 
-async function findbyId(id) {
-    const resultado = await executeSQL(
-        'SELECT id, fecha, hora, idpaciente, idmedico FROM Cita WHERE id = $1', 
-        [id]    );
-    const row = resultado.rows[0];
-    return row ? new cita(row) : null;
+export async function buscarPorId(id) {
+  const res = await ejecutarSQL(
+    'SELECT idCita as id, id_cliente as "idCliente", id_abogado as "idAbogado", fecha, hora, motivo, estado FROM Cita WHERE idCita = $1',
+    [id]
+  );
+  return res.rows[0] ? new Cita(res.rows[0]) : null;
 }
 
-async function findAll () {
-    const resultado = await executeSQL(
-        'SELECT id, fecha, idpaciente, idmedico FROM Cita'
-    );
-    return resultado.rows.map((row) => new cita(row));
+export async function obtenerTodas() {
+  const resultado = await ejecutarSQL(
+    'SELECT idCita as id, id_cliente as "idCliente", id_abogado as "idAbogado", fecha, hora, motivo, estado FROM Cita'
+  );
+  return resultado.rows.map(row => new Cita(row));
 }
 
-async function create(cita) {
-    const resultado = await executeSQL(
-        'INSERT INTO Cita (fecha, hora, idpaciente, idmedico) VALUES ($1, $2, $3, $4) RETURNING *',
-        [cita.fecha, cita.hora, cita.paciente_cedula, cita.doctor_cedula]
-    );
-    return new cita(resultado.rows[0]);
+// buscar citas de un cliente especifico
+export async function buscarPorCliente(idCliente) {
+  const resultado = await ejecutarSQL(
+    'SELECT idCita as id, id_cliente as "idCliente", id_abogado as "idAbogado", fecha, hora, motivo, estado FROM Cita WHERE id_cliente = $1',
+    [idCliente]
+  );
+  return resultado.rows.map(row => new Cita(row));
 }
 
-async function update(cita) {
-    const resultado = await executeSQL(
-        'UPDATE Cita SET fecha = $1, hora = $2, paciente_cedula = $3, doctor_cedula = $4 WHERE id = $5 RETURNING *',
-        [cita.fecha, cita.hora, cita.paciente_cedula, cita.doctor_cedula, cita.id]
-    );
-    return resultado.rows[0] ? new cita(resultado.rows[0]) : null;
-}   
+export async function crear(cita) {
+  const resultado = await ejecutarSQL(
+    'INSERT INTO Cita (id_cliente, id_abogado, fecha, hora, motivo, estado) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [cita.idCliente, cita.idAbogado, cita.fecha, cita.hora, cita.motivo, cita.estado || 'pendiente']
+  );
+  // console.log('cita creada:', resultado.rows[0]);
+  return new Cita({
+    id: resultado.rows[0].idcita,
+    idCliente: resultado.rows[0].id_cliente,
+    idAbogado: resultado.rows[0].id_abogado,
+    fecha: resultado.rows[0].fecha,
+    hora: resultado.rows[0].hora,
+    motivo: resultado.rows[0].motivo,
+    estado: resultado.rows[0].estado
+  });
+}
 
-async function deleteById(id) {
-    const resultado = await executeSQL(
-        'DELETE FROM Cita WHERE id = $1 RETURNING *',
-        [id]
-    );
-    return resultado.rows[0] ? new cita(resultado.rows[0]) : null;
-}   
+export async function actualizar(cita) {
+  const resultado = await ejecutarSQL(
+    'UPDATE Cita SET id_cliente = $1, id_abogado = $2, fecha = $3, hora = $4, motivo = $5, estado = $6 WHERE idCita = $7 RETURNING *',
+    [cita.idCliente, cita.idAbogado, cita.fecha, cita.hora, cita.motivo, cita.estado, cita.id]
+  );
+  return resultado.rows[0] ? new Cita(resultado.rows[0]) : null;
+}
 
-const citaRepository = {
-    findbyId,
-    findAll,
-    create,
-    update,
-    deleteById
-};
+export async function eliminarPorId(id) {
+  const resultado = await ejecutarSQL(
+    'DELETE FROM Cita WHERE idCita = $1 RETURNING *',
+    [id]
+  );
+  return resultado.rowCount > 0;
+}
 
-module.exports = {
-    citaRepository
+export default {
+  buscarPorId,
+  obtenerTodas,
+  buscarPorCliente,
+  crear,
+  actualizar,
+  eliminarPorId
 };
