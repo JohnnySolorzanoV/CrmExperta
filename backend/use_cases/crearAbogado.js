@@ -1,14 +1,13 @@
-const AbogadoRepositorio = require('../repositories/abogado_repositorio');
+import * as abogadoRepositorio from '../repositories/abogadoRepositorio.js';
 
-async function CrearAbogado({ identificacion, nombre, correo, contrasena, especialidad, num_licencia }) {
-    return await AbogadoRepositorio.create({
-        identificacion,
-        nombre,
-        correo,
-        contrasena,
-        especialidad,
-        num_licencia,
-    });
+export async function crearAbogado({ identificacion, nombre, correo, contrasena, especialidad, numLicencia }) {
+  // falta validar que no exista ya un abogado con esa cedula
+  return abogadoRepositorio.crear({
+    identificacion,
+    nombre,
+    correo,
+    contrasena,
+    especialidad,
+    numLicencia
+  });
 }
-
-module.exports = CrearAbogado;

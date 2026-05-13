@@ -1,4 +1,4 @@
-class Documento {
+export class Documento {
   constructor({ idDocumento, nombreArchivo, rutaArchivo, tipoDocumento, fechaSubida, cedulaUsuario }) {
     this.idDocumento = idDocumento;
     this.nombreArchivo = nombreArchivo;
@@ -8,5 +8,3 @@ class Documento {
     this.cedulaUsuario = cedulaUsuario;
   }
 }
-
-module.exports = Documento;

@@ -1,24 +1,32 @@
-const express = require('express');
-const CrearAbogado = require('../use_cases/crearAbogado');
-const abogadoRepositorio = require('../repositories/abogado_repositorio');
+import express from 'express';
+import {crearAbogado} from '../use_cases/crearAbogado.js';
+import * as abogadoRepositorio from '../repositories/abogadoRepositorio.js';
 
-const router = express.Router();
+export const abogadoRoutes = express.Router();
 
-router.get('/abogados', async (req, res) => {
-    const abogados = await abogadoRepositorio.findAll();
-    res.status(200).json({ abogados });
+abogadoRoutes.get('/abogados', async (req, res) => {
+  try {
+    const abogados = await abogadoRepositorio.obtenerTodos();
+    res.json({ abogados });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener abogados' });
+  }
 });
 
-router.post('/crearAbogado', async (req, res) => {
-    console.log('Recibida solicitud de creación de abogado con datos:', req.body);
-    try {
-        const { identificacion, nombre, correo, contrasena, especialidad, num_licencia } = req.body;
-        const abogado = await CrearAbogado({ identificacion, nombre, correo, contrasena, especialidad, num_licencia });
-        res.status(200).json({ message: 'Abogado creado exitosamente', abogado });
-    } catch (error) {
-        console.error('Error en creación de abogado:', error);
-        res.status(401).json({ error: error.message });
-    }
+abogadoRoutes.post('/crearAbogado', async (req, res) => {
+  try {
+    const { identificacion, nombre, correo, contrasena, especialidad, num_licencia } = req.body;
+    const abogado = await crearAbogado({ 
+      identificacion, 
+      nombre, 
+      correo, 
+      contrasena, 
+      especialidad, 
+      numLicencia: num_licencia 
+    });
+    res.json({ mensaje: 'Abogado creado', abogado });
+  } catch (error) {
+    console.error('Error creando abogado:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
-
-module.exports = router;

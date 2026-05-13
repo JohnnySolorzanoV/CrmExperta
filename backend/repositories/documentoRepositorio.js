@@ -1,52 +1,57 @@
-const Documento = require('../entities/documento');
-const { executeSQL } = require('../external_integrations/baseDatos');
+import {Documento} from '../entities/documento.js';
+import { ejecutarSQL } from '../external_integrations/baseDatos.js';
 
-async function findById(idDocumento) {
-  const resultado = await executeSQL(
-    'SELECT idDocumento, nombreArchivo, rutaArchivo, tipoDocumento, fechaSubida, cedulaUsuario FROM Documento WHERE idDocumento = $1',
+export async function buscarPorId(idDocumento) {
+  const resultado = await ejecutarSQL(
+    'SELECT * FROM Documento WHERE idDocumento = $1',
     [idDocumento]
   );
-  const row = resultado.rows[0];
-  return row ? new Documento(row) : null;
+  return resultado.rows[0] ? new Documento(resultado.rows[0]) : null;
 }
 
-async function findAll() {
-  const resultado = await executeSQL(
-    'SELECT idDocumento, nombreArchivo, rutaArchivo, tipoDocumento, fechaSubida, cedulaUsuario FROM Documento'
+export async function obtenerTodos() {
+  const resultado = await ejecutarSQL('SELECT * FROM Documento');
+  return resultado.rows.map(row => new Documento(row));
+}
+
+// obtener documentos de un usuario
+export async function buscarPorUsuario(cedulaUsuario) {
+  const resultado = await ejecutarSQL(
+    'SELECT * FROM Documento WHERE cedulaUsuario = $1 ORDER BY fechaSubida DESC',
+    [cedulaUsuario]
   );
-  return resultado.rows.map((row) => new Documento(row));
+  return resultado.rows.map(row => new Documento(row));
 }
 
-async function create(documento) {
-  const resultado = await executeSQL(
-    'INSERT INTO Documento (nombreArchivo, rutaArchivo, tipoDocumento, fechaSubida, cedulaUsuario) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [documento.nombreArchivo, documento.rutaArchivo, documento.tipoDocumento, documento.fechaSubida, documento.cedulaUsuario]
+export async function crear(documento) {
+  const resultado = await ejecutarSQL(
+    'INSERT INTO Documento (nombreArchivo, rutaArchivo, tipoDocumento, cedulaUsuario) VALUES ($1, $2, $3, $4) RETURNING *',
+    [documento.nombreArchivo, documento.rutaArchivo, documento.tipoDocumento, documento.cedulaUsuario]
   );
   return new Documento(resultado.rows[0]);
 }
 
-async function update(documento) {
-  const resultado = await executeSQL(
-    'UPDATE Documento SET nombreArchivo = $1, rutaArchivo = $2, tipoDocumento = $3, fechaSubida = $4, cedulaUsuario = $5 WHERE idDocumento = $6 RETURNING *',
-    [documento.nombreArchivo, documento.rutaArchivo, documento.tipoDocumento, documento.fechaSubida, documento.cedulaUsuario, documento.idDocumento]
+export async function actualizar(documento) {
+  const resultado = await ejecutarSQL(
+    'UPDATE Documento SET nombreArchivo = $1, rutaArchivo = $2, tipoDocumento = $3 WHERE idDocumento = $4 RETURNING *',
+    [documento.nombreArchivo, documento.rutaArchivo, documento.tipoDocumento, documento.idDocumento]
   );
   return resultado.rows[0] ? new Documento(resultado.rows[0]) : null;
 }
 
-async function deleteById(idDocumento) {
-  const resultado = await executeSQL(
-    'DELETE FROM Documento WHERE idDocumento = $1 RETURNING *',
+export async function eliminarPorId(idDocumento) {
+  const res = await ejecutarSQL(
+    'DELETE FROM Documento WHERE idDocumento = $1',
     [idDocumento]
   );
-  return resultado.rows[0] ? new Documento(resultado.rows[0]) : null;
+  return res.rowCount > 0;
 }
 
-const documentoRepositorio = {
-  findById,
-  findAll,
-  create,
-  update,
-  deleteById,
+export default {
+  buscarPorId,
+  obtenerTodos,
+  buscarPorUsuario,
+  crear,
+  actualizar,
+  eliminarPorId
 };
-
-module.exports = documentoRepositorio;
