@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 
-const DEV_PORT = 5433;
+const DEV_PORT = 5432;
 const DEV_DB_NAME = 'crm_experta';
 const DEV_DB_USER = 'postgres';
 const DEV_DB_PASSWORD = 'admin1234';
