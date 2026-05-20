@@ -1,10 +1,10 @@
 import {Usuario} from '../entities/usuario.js';
 import { ejecutarSQL } from '../external_integrations/baseDatos.js';
 
-export async function buscarPorCedula(cedula) {
+export async function buscarPorIdentificacion(identificacion) {
   const res = await ejecutarSQL(
     'SELECT id, identificacion, nombre, correo, contrasena, rol FROM Usuario WHERE identificacion = $1',
-    [cedula]
+    [identificacion]
   );
   return res.rows[0] ? new Usuario(res.rows[0]) : null;
 }
@@ -41,20 +41,20 @@ export async function actualizar(usuario) {
   return resultado.rows[0] ? new Usuario(resultado.rows[0]) : null;
 }
 
-export async function eliminarPorCedula(cedula) {
+export async function eliminarPorIdentificacion(identificacion) {
   const resultado = await ejecutarSQL(
     'DELETE FROM Usuario WHERE identificacion = $1 RETURNING *',
-    [cedula]
+    [identificacion]
   );
   return resultado.rows[0] ? new Usuario(resultado.rows[0]) : null;
 }
 
 // exportar todo junto tambien por si acaso
 export default {
-  buscarPorCedula,
+  buscarPorIdentificacion,
   buscarPorCorreo,
   obtenerTodos,
   crear,
   actualizar,
-  eliminarPorCedula
+  eliminarPorIdentificacion
 };
