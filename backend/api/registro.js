@@ -1,6 +1,7 @@
 import express from 'express';
 import {crearCuenta} from '../use_cases/crearCuenta.js';
 import { obtenerTodos } from '../repositories/usuarioRepositorio.js';
+import { asignarRol } from '../use_cases/asignarRol.js';
 
 export const registroRoutes = express.Router();
 
@@ -21,5 +22,16 @@ registroRoutes.get('/listasTodas', async (req, res) => {
   } catch (error) {
     console.error('Error al obtener listas:', error);
     res.status(500).json({ error: 'No se pudieron obtener las listas' });
+  }
+});
+
+registroRoutes.put('/asignarRol', async (req, res) => {
+  try {
+    const { nuevoRol, correo } = req.body;
+    await asignarRol(nuevoRol, correo);
+    res.json({ mensaje: 'Rol cambiado' });
+  } catch (error) {
+    console.error('Error al cambiar el rol:', error);
+    res.status(500).json({ error: 'No se pudo cambiar el rol' });
   }
 });

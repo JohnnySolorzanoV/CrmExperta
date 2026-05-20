@@ -50,3 +50,4 @@ CREATE TABLE Documento (
         REFERENCES Usuario(identificacion) 
         ON DELETE CASCADE 
 );
+
