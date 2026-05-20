@@ -1,0 +1,19 @@
+@import "bootstrap/scss/functions";
+
+$primary: #dab656;
+$secondary: #c6c6c6;
+
+@import "bootstrap/scss/variables";
+
+$theme-colors: map-merge(
+    $theme-colors, 
+    (
+        "primary": $primary,
+        "secondary": $secondary
+    )
+);  
+
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/bootstrap";
