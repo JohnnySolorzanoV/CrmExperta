@@ -1,53 +1,82 @@
+-- Schema corregido para CRM Experta
+-- Cambios respecto al original:
+--   - FK apuntan a Usuario(id) en vez de identificacion
+--   - Cita ahora tiene id_cliente e id_abogado
+--   - Nombres de tablas y columnas en snake_case
+--   - NOT NULL donde corresponde
+
 CREATE TABLE Usuario (
     id SERIAL PRIMARY KEY,
-    identificacion VARCHAR(10) UNIQUE,
-    nombre VARCHAR(100),
-    correo VARCHAR(100) UNIQUE,
-    contrasena VARCHAR(255),
-    rol VARCHAR(20) 
+    identificacion VARCHAR(20) UNIQUE NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    correo VARCHAR(100) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE ABOGADO (
+CREATE TABLE Abogado (
     id SERIAL PRIMARY KEY,
-    id_usuario INTEGER UNIQUE REFERENCES Usuario(id),
-    num_licencia VARCHAR(10) UNIQUE, 
-    especialidad VARCHAR(100)
+    id_usuario INTEGER UNIQUE NOT NULL REFERENCES Usuario(id) ON DELETE CASCADE,
+    num_licencia VARCHAR(20) UNIQUE NOT NULL,
+    especialidad VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE CLIENTE (
+CREATE TABLE Cliente (
     id SERIAL PRIMARY KEY,
-    id_usuario INTEGER UNIQUE REFERENCES Usuario(id),
-    direccion VARCHAR (100),
-    telefono VARCHAR (10)
+    id_usuario INTEGER UNIQUE NOT NULL REFERENCES Usuario(id) ON DELETE CASCADE,
+    direccion VARCHAR(200),
+    telefono VARCHAR(20)
+);
+
+CREATE TABLE Administrador (
+    id SERIAL PRIMARY KEY,
+    id_usuario INTEGER UNIQUE NOT NULL REFERENCES Usuario(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Caso (
+    id SERIAL PRIMARY KEY,
+    estado_caso VARCHAR(20) NOT NULL,
+    fecha_apertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    tipo_caso VARCHAR(50) NOT NULL,
+    nombre_caso VARCHAR(100) NOT NULL,
+    id_cliente INTEGER NOT NULL REFERENCES Cliente(id) ON DELETE CASCADE,
+    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Chatbot (
-    idConsulta SERIAL PRIMARY KEY,
-    cedula_cliente VARCHAR(10) REFERENCES Usuario(identificacion),
-    preguntaUsuarios TEXT,
-    respuestaIA TEXT,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id SERIAL PRIMARY KEY,
+    id_usuario INTEGER REFERENCES Usuario(id) ON DELETE SET NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    chat_log TEXT
+);
+
+CREATE TABLE Calendario (
+    id SERIAL PRIMARY KEY,
+    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE CASCADE,
+    fecha_evento TIMESTAMP NOT NULL,
+    descripcion TEXT
 );
 
 CREATE TABLE Cita (
-    idCita SERIAL PRIMARY KEY,
-    cedula_cliente VARCHAR(10) REFERENCES Usuario(identificacion),
-    fechaHora TIMESTAMP,
+    id SERIAL PRIMARY KEY,
+    id_cliente INTEGER NOT NULL REFERENCES Cliente(id) ON DELETE CASCADE,
+    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE CASCADE,
+    fecha_hora_copia TIMESTAMP NOT NULL,
+    id_calendario INTEGER REFERENCES Calendario(id) ON DELETE SET NULL,
     motivo TEXT,
-    estado VARCHAR(20) DEFAULT 'Pendiente' 
+    estado_cita VARCHAR(20) DEFAULT 'pendiente',
+    resumen_chatbot TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Documento (
-    idDocumento SERIAL PRIMARY KEY,
-    nombreArchivo VARCHAR(255) NOT NULL,
-    rutaArchivo VARCHAR(500) NOT NULL, 
-    tipoDocumento VARCHAR(50), 
-    fechaSubida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    cedulaUsuario VARCHAR(10),
-
-    CONSTRAINT fk_usuario_documento 
-        FOREIGN KEY (cedulaUsuario) 
-        REFERENCES Usuario(identificacion) 
-        ON DELETE CASCADE 
+    id SERIAL PRIMARY KEY,
+    id_caso INTEGER NOT NULL REFERENCES Caso(id) ON DELETE CASCADE,
+    nombre_documento VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    extension VARCHAR(10),
+    fecha_subida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ruta_archivo VARCHAR(500) NOT NULL,
+    tamaño INTEGER NOT NULL
 );
 

@@ -1,37 +1,52 @@
-import express from 'express';
-import cors from 'cors';
-import { probarConexion } from './external_integrations/baseDatos.js';
+import express from 'express'
+import { default as corsMod } from 'cors'
+import { config as envConfig } from 'dotenv'
+import { probarConexion } from './config/database.js'
+import { manejoDeErrores } from './config/manejoDeErrores.js'
+import authRutas from './modulos/auth/auth.rutas.js'
+import usuarioRutas from './modulos/usuarios/usuario.rutas.js'
+import abogadoRutas from './modulos/abogados/abogado.rutas.js'
+import calendarioRutas from './modulos/calendario/calendario.rutas.js'
+import citaRutas from './modulos/citas/cita.rutas.js'
+import casoRutas from './modulos/casos/caso.rutas.js'
+import documentoRutas from './modulos/documentos/documento.rutas.js'
+import chatbotRutas from './modulos/chatbot/chatbot.rutas.js'
 
-import {loginRoutes} from './api/login.js';
-import {registroRoutes} from './api/registro.js';
-import {abogadoRoutes} from './api/abogado.js';
+envConfig()
 
-const app = express();
-const puerto = process.env.PORT || 3000;
+const APP = express()
+var PUERTO = process.env.PORT || 3000
 
-app.use(cors());
-app.use(express.json());
+APP.use(corsMod())
+APP.use(express.json())
 
-// rutas
-app.use('/api', loginRoutes);
-app.use('/api/registro', registroRoutes);
-app.use('/api/abogado', abogadoRoutes);
+var MODULOS_ACTIVOS = [
+  { ruta: '/api/auth', handler: authRutas },
+  { ruta: '/api/usuarios', handler: usuarioRutas },
+  { ruta: '/api/abogados', handler: abogadoRutas },
+  { ruta: '/api/calendario', handler: calendarioRutas },
+  { ruta: '/api/citas', handler: citaRutas },
+  { ruta: '/api/casos', handler: casoRutas },
+  { ruta: '/api/documentos', handler: documentoRutas },
+  { ruta: '/api/chatbot', handler: chatbotRutas },
+]
 
-app.get('/api/estado', (req, res) => {
-  res.json({ mensaje: 'Servidor CRM Experta funcionando' });
-});
-
-// iniciar servidor
-async function iniciar() {
-  try {
-    await probarConexion();
-    app.listen(puerto, () => {
-      console.log(`Servidor en http://localhost:${puerto}`);
-    });
-  } catch (error) {
-    console.error('No se pudo conectar a la BD:', error.message);
-    process.exit(1);
-  }
+for (var mod of MODULOS_ACTIVOS) {
+  APP.use(mod.ruta, mod.handler)
 }
 
-iniciar();
+APP.use(manejoDeErrores)
+
+async function iniciar() {
+    await probarConexion()
+    APP.listen(PUERTO, () => {
+      console.log('Servidor en http://localhost:' + PUERTO)
+    })
+}
+
+try {
+  iniciar()
+} catch (e) {
+  console.error('error al iniciar:', e.message)
+  process.exit(1)
+}

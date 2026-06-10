@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Flujo Completo - CRM Experta</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #f5f5f5; padding: 20px; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 5px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .config { background: #e8e8e8; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+  .config label { display: inline-block; width: 70px; font-size: 12px; }
+  .config input { width: 300px; padding: 3px 6px; font-size: 12px; font-family: monospace; border: 1px solid #aaa; }
+
+  .paso { background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 6px; overflow: hidden; }
+  .paso-header { padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
+  .paso-header:hover { background: #f0f0f0; }
+  .paso-num { background: #666; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0; }
+  .paso-num.hecho { background: #2a7; }
+  .paso-num.error { background: #c33; }
+  .paso-titulo { font-size: 13px; flex: 1; }
+  .paso-rol { font-size: 10px; background: #ddd; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; }
+  .paso-btn { padding: 4px 12px; font-size: 11px; cursor: pointer; border: 1px solid #888; background: #eee; border-radius: 3px; font-family: monospace; }
+  .paso-btn:hover { background: #ddd; }
+  .paso-btn:disabled { opacity: 0.5; cursor: default; }
+  .paso-detalle { border-top: 1px solid #eee; display: none; }
+  .paso-detalle.abierto { display: block; }
+
+  .detalle-sec { padding: 8px 10px; }
+  .detalle-sec h4 { font-size: 11px; color: #555; margin-bottom: 4px; }
+  .detalle-sec pre { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 3px; padding: 6px 8px; font-size: 11px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  .detalle-sec pre.req { border-left: 3px solid #36c; }
+  .detalle-sec pre.res { border-left: 3px solid #2a7; }
+
+  .login-form, .registro-form, .formulario-form { padding: 8px 10px; border-top: 1px solid #eee; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .login-form input, .registro-form input, .formulario-form input { padding: 3px 6px; font-size: 12px; border: 1px solid #aaa; border-radius: 2px; font-family: monospace; }
+  .login-form button, .registro-form button, .formulario-form button { padding: 3px 10px; font-size: 11px; cursor: pointer; font-family: monospace; }
+  .login-form input { width: 160px; }
+  .registro-form input { width: 140px; }
+  .formulario-form .campo { display: flex; flex-direction: column; gap: 1px; }
+  .formulario-form .campo label { font-size: 9px; color: #666; text-transform: uppercase; }
+  .formulario-form .campo input { width: 130px; }
+
+  .nota { font-size: 11px; color: #666; font-style: italic; margin: 4px 0; }
+  .info-box { background: #fffbe6; border: 1px solid #e6d; padding: 8px 10px; font-size: 12px; border-radius: 4px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🧪 Prueba de flujo completa — CRM Experta</h1>
+<p style="font-size:12px;color:#555;margin-bottom:10px;">
+  <strong>Admin predefinido:</strong> admin@crm.com / admin123
+  &nbsp;(si no existe, corre <code>npm run seed</code> en <code>backend/</code>)
+</p>
+
+<div class="config">
+  <label>API URL:</label>
+  <input id="apiUrl" value="http://localhost:3000/api" />
+</div>
+
+<div class="info-box" id="loginPrompt">
+  <strong>Estado:</strong> esperando accion...
+</div>
+
+<div id="pasos"></div>
+
+<script>
+var MAPA_DATOS = {
+  abogado: ['abogadoId', 'abogadoUserId'],
+  cita: ['citaId'],
+  cliente: ['clienteId'],
+  admin: ['adminToken']
+}
+
+var STEPS = [
+  // ===== SETUP: crear cliente =====
+  {
+    id: 'registrar-cliente',
+    titulo: 'Registrar nuevo cliente',
+    rol: '—',
+    desc: 'Crea un cliente nuevo. No necesita autenticacion.',
+    tipo: 'registro',
+    endpoint: '/auth/registro',
+    metodo: 'POST',
+    campos: [
+      { id: 'identificacion', label: 'Cedula', ph: '12345678', valor: '12345678' },
+      { id: 'nombre', label: 'Nombre', ph: 'Juan Perez', valor: 'Juan Perez' },
+      { id: 'correo', label: 'Correo', ph: 'juan@mail.com', valor: 'juan@mail.com' },
+      { id: 'contrasena', label: 'Clave', ph: '••••••', type: 'password', valor: 'cliente123' }
+    ]
+  },
+  // ===== SETUP: login admin =====
+  {
+    id: 'login-admin',
+    titulo: 'Iniciar sesion como administrador',
+    rol: 'admin',
+    desc: 'Admin predefinido: admin@crm.com / admin123 (corre npm run seed en backend/ si no existe).',
+    tipo: 'login',
+    rolGuardar: 'admin'
+  },
+  // ===== SETUP: crear abogado =====
+  {
+    id: 'crear-abogado',
+    titulo: 'Crear nuevo abogado',
+    rol: 'admin',
+    desc: 'Usa el token de administrador para crear un abogado en el sistema.',
+    tipo: 'formulario',
+    endpoint: '/abogados/',
+    metodo: 'POST',
+    necesitaToken: 'admin',
+    campos: [
+      { id: 'identificacion', label: 'Cedula', ph: '87654321', valor: '87654321' },
+      { id: 'nombre', label: 'Nombre', ph: 'Dra. Maria Gomez', valor: 'Dra. Maria Gomez' },
+      { id: 'correo', label: 'Correo', ph: 'maria@bufete.com', valor: 'maria@bufete.com' },
+      { id: 'contrasena', label: 'Clave', ph: '••••••', type: 'password', valor: 'clave123' },
+      { id: 'especialidad', label: 'Especialidad', ph: 'Divorcio', valor: 'Divorcio' },
+      { id: 'numLicencia', label: 'Licencia', ph: 'LIC-001', valor: 'LIC-001' }
+    ]
+  },
+  // ===== FLUJO PRINCIPAL =====
+  {
+    id: 'login-cliente',
+    titulo: 'Cliente inicia sesion',
+    rol: 'cliente',
+    desc: 'El cliente se autentica en el sistema.',
+    tipo: 'login',
+    rolGuardar: 'cliente'
+  },
+  {
+    id: 'chatbot',
+    titulo: 'Cliente interactua con el chatbot',
+    rol: 'cliente',
+    desc: 'El cliente consulta al chatbot sobre su situacion legal.',
+    tipo: 'accion',
+    metodo: 'POST',
+    ruta: '/chatbot/consultar',
+    action: async (ctx) => {
+      var m = prompt('Mensaje para el chatbot:', 'Necesito asesoria sobre un caso de divorcio')
+      if (!m) return null
+      return await apiFetch(ctx.apiUrl + '/chatbot/consultar', 'POST', { mensaje: m }, ctx.tokens.cliente)
+    }
+  },
+  {
+    id: 'listar-abogados',
+    titulo: 'Cliente busca abogados disponibles',
+    rol: 'cliente',
+    desc: 'El cliente consulta la lista de abogados.',
+    tipo: 'accion',
+    metodo: 'GET',
+    ruta: '/abogados/',
+    action: async (ctx) => {
+      return await apiFetch(ctx.apiUrl + '/abogados/', 'GET', null, ctx.tokens.cliente)
+    }
+  },
+  {
+    id: 'ver-calendario',
+    titulo: 'Cliente consulta disponibilidad del abogado',
+    rol: 'cliente',
+    desc: 'Selecciona un abogado de la lista y consulta su calendario.',
+    tipo: 'accion',
+    metodo: 'GET',
+    ruta: '/calendario/abogado/:idAbogado',
+    requiereDato: 'abogado',
+    action: async (ctx) => {
+      if (!ctx.datos.abogadoId) return { _error: 'Selecciona un abogado primero (paso anterior)' }
+      return await apiFetch(ctx.apiUrl + '/calendario/abogado/' + ctx.datos.abogadoId, 'GET', null, ctx.tokens.cliente)
+    }
+  },
+  {
+    id: 'crear-cita',
+    titulo: 'Cliente agenda la cita',
+    rol: 'cliente',
+    desc: 'Con la disponibilidad confirmada, el cliente crea la cita.',
+    tipo: 'accion',
+    metodo: 'POST',
+    ruta: '/citas/',
+    requiereDato: 'abogado',
+    action: async (ctx) => {
+      var d = ctx.datos
+      var fecha = prompt('Fecha y hora (YYYY-MM-DD HH:MM):', '2026-06-15 10:00')
+      if (!fecha) return null
+      var motivo = prompt('Motivo de la cita:', 'Consulta inicial de divorcio')
+      var body = { idCliente: d.clienteId, idAbogado: d.abogadoId, fechaHoraCopia: fecha, motivo: motivo || undefined }
+      if (d.calendarioId) body.idCalendario = d.calendarioId
+      if (d.resumenChatbot) body.resumenChatbot = d.resumenChatbot
+      return await apiFetch(ctx.apiUrl + '/citas/', 'POST', body, ctx.tokens.cliente)
+    }
+  },
+  {
+    id: 'login-abogado',
+    titulo: 'Abogado inicia sesion',
+    rol: 'abogado',
+    desc: 'El abogado se autentica para ver sus citas y administrarlas.',
+    tipo: 'login',
+    rolGuardar: 'abogado'
+  },
+  {
+    id: 'ver-citas-abogado',
+    titulo: 'Abogado revisa sus citas',
+    rol: 'abogado',
+    desc: 'El abogado consulta las citas agendadas con el.',
+    tipo: 'accion',
+    metodo: 'GET',
+    ruta: '/citas/abogado/:idAbogado',
+    requiereDato: 'abogado',
+    action: async (ctx) => {
+      if (!ctx.datos.abogadoUserId) return { _error: 'El abogado debe iniciar sesion primero' }
+      return await apiFetch(ctx.apiUrl + '/citas/abogado/' + ctx.datos.abogadoUserId, 'GET', null, ctx.tokens.abogado)
+    }
+  },
+  {
+    id: 'reprogramar-cita',
+    titulo: 'Abogado reprograma la cita',
+    rol: 'abogado',
+    desc: 'El abogado selecciona una nueva fecha. Se notifica al cliente.',
+    tipo: 'accion',
+    metodo: 'PUT',
+    ruta: '/citas/:id/reprogramar',
+    requiereDato: 'cita',
+    action: async (ctx) => {
+      if (!ctx.datos.citaId) return { _error: 'No hay cita agendada para reprogramar' }
+      var nueva = prompt('Nueva fecha y hora (YYYY-MM-DD HH:MM):', '2026-06-16 14:00')
+      if (!nueva) return null
+      var body = { fechaHoraCopia: nueva }
+      var calId = prompt('ID del calendario (opcional):', '')
+      if (calId) body.idCalendario = parseInt(calId)
+      return await apiFetch(ctx.apiUrl + '/citas/' + ctx.datos.citaId + '/reprogramar', 'PUT', body, ctx.tokens.abogado)
+    }
+  },
+  {
+    id: 'cancelar-cita',
+    titulo: 'Abogado cancela la cita',
+    rol: 'abogado',
+    desc: 'Cancela la cita y notifica la anulacion al cliente.',
+    tipo: 'accion',
+    metodo: 'PUT',
+    ruta: '/citas/:id/cancelar',
+    requiereDato: 'cita',
+    action: async (ctx) => {
+      if (!ctx.datos.citaId) return { _error: 'No hay cita para cancelar' }
+      var ok = confirm('Cancelar cita #' + ctx.datos.citaId + '?')
+      if (!ok) return null
+      return await apiFetch(ctx.apiUrl + '/citas/' + ctx.datos.citaId + '/cancelar', 'PUT', null, ctx.tokens.abogado)
+    }
+  },
+  {
+    id: 'ver-citas-pendientes',
+    titulo: 'Revisar citas pendientes del cliente',
+    rol: 'cliente',
+    desc: 'El cliente revisa sus citas pendientes.',
+    tipo: 'accion',
+    metodo: 'GET',
+    ruta: '/citas/cliente/:idCliente',
+    requiereDato: 'cliente',
+    action: async (ctx) => {
+      if (!ctx.datos.clienteId) return { _error: 'El cliente debe iniciar sesion primero' }
+      return await apiFetch(ctx.apiUrl + '/citas/cliente/' + ctx.datos.clienteId, 'GET', null, ctx.tokens.cliente)
+    }
+  },
+  {
+    id: 'marcar-cumplida',
+    titulo: 'Marcar cita como cumplida',
+    rol: 'abogado',
+    desc: 'Marca la cita como completada.',
+    tipo: 'accion',
+    metodo: 'PUT',
+    ruta: '/citas/:id/completar',
+    requiereDato: 'cita',
+    action: async (ctx) => {
+      if (!ctx.datos.citaId) return { _error: 'No hay cita para marcar como cumplida' }
+      return await apiFetch(ctx.apiUrl + '/citas/' + ctx.datos.citaId + '/completar', 'PUT', null, ctx.tokens.abogado)
+    }
+  },
+  {
+    id: 'crear-caso',
+    titulo: 'Crear caso legal (post-cita)',
+    rol: 'abogado',
+    desc: 'Despues de la cita, el abogado crea un caso legal para el cliente.',
+    tipo: 'accion',
+    metodo: 'POST',
+    ruta: '/casos/',
+    requiereDato: 'abogado',
+    action: async (ctx) => {
+      if (!ctx.datos.clienteId || !ctx.datos.abogadoUserId) return { _error: 'Faltan datos de cliente o abogado' }
+      var tipo = prompt('Tipo de caso:', 'Divorcio')
+      var nom = prompt('Nombre del caso:', 'Caso de divorcio - ' + new Date().toLocaleDateString())
+      if (!tipo || !nom) return null
+      return await apiFetch(ctx.apiUrl + '/casos/', 'POST',
+        { tipoCaso: tipo, nombreCaso: nom, idCliente: ctx.datos.clienteId, idAbogado: ctx.datos.abogadoUserId },
+        ctx.tokens.abogado)
+    }
+  }
+]
+
+// ---- util ----
+async function apiFetch(url, method, body, token) {
+  var headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = 'Bearer ' + token
+  var opts = { method, headers }
+  if (body) opts.body = JSON.stringify(body)
+  var res = await fetch(url, opts)
+  var data = await res.json().catch(function () { return { raw: '(error parseando respuesta)' } })
+  return { status: res.status, ok: res.ok, data: data }
+}
+
+// ---- estado global ----
+var ctx = {
+  apiUrl: '',
+  tokens: { cliente: null, abogado: null, admin: null },
+  datos: {
+    clienteId: null, abogadoId: null, abogadoUserId: null,
+    citaId: null, calendarioId: null, resumenChatbot: null
+  }
+}
+
+function actualizarDatos(pasoId, resultado) {
+  if (!resultado || resultado._error || resultado._simulado) return
+  var d = resultado.data
+  if (!d) return
+
+  if (pasoId === 'registrar-cliente' && d.usuario) {
+    ctx.datos.clienteId = d.usuario.id
+  }
+  if (pasoId === 'login-cliente' && d.usuario) {
+    ctx.datos.clienteId = d.usuario.id
+  }
+  if (pasoId === 'login-abogado' && d.usuario) {
+    ctx.datos.abogadoUserId = d.usuario.id
+  }
+  if (pasoId === 'chatbot' && d.consulta) {
+    ctx.datos.resumenChatbot = typeof d.consulta === 'string' ? d.consulta : JSON.stringify(d.consulta)
+  }
+  if (pasoId === 'listar-abogados' && d.abogados && d.abogados.length > 0) {
+    var idx = prompt(
+      'Abogados:\n' + d.abogados.map(function (a, i) { return (i + 1) + '. ' + a.nombre + ' (ID:' + a.id + ') ' + a.especialidad }).join('\n') +
+      '\n\nSelecciona numero:',
+      '1')
+    var sel = d.abogados[parseInt(idx) - 1]
+    if (sel) { ctx.datos.abogadoId = sel.id; ctx.datos.abogadoUserId = sel.id }
+  }
+  if (pasoId === 'ver-calendario' && d.slots && d.slots.length > 0) {
+    var idx = prompt(
+      'Slots:\n' + d.slots.map(function (s, i) { return (i + 1) + '. ' + s.fechaEvento + ' | ID:' + s.id }).join('\n') +
+      '\n\nSelecciona numero (o Enter para saltar):',
+      '1')
+    var sel = d.slots[parseInt(idx) - 1]
+    if (sel) ctx.datos.calendarioId = sel.id
+  }
+  if (pasoId === 'crear-cita' && d.cita) ctx.datos.citaId = d.cita.id
+  if (pasoId === 'reprogramar-cita' && d.cita) ctx.datos.citaId = d.cita.id
+  if (pasoId === 'crear-abogado' && d.abogado) {
+    ctx.datos.abogadoId = d.abogado.id
+    ctx.datos.abogadoUserId = d.abogado.id
+  }
+}
+
+function autoRellenarLogin(resultado, pasoId) {
+  if (!resultado || !resultado.data) return
+  var d = resultado.data
+
+  // registro cliente -> rellenar login cliente
+  if (pasoId === 'registrar-cliente' && d.usuario) {
+    var ci = document.getElementById('login-correo-login-cliente')
+    var cp = document.getElementById('login-pass-login-cliente')
+    if (ci && d.usuario.mail) ci.value = d.usuario.mail
+  }
+
+  // crear abogado -> rellenar login abogado
+  if (pasoId === 'crear-abogado' && d.abogado) {
+    var ai = document.getElementById('login-correo-login-abogado')
+    var ap = document.getElementById('login-pass-login-abogado')
+    if (ai && d.abogado.correo) ai.value = d.abogado.correo
+  }
+}
+
+// ---- render ----
+function init() {
+  var apiUrlInput = document.getElementById('apiUrl')
+
+  function getApiUrl() {
+    ctx.apiUrl = apiUrlInput.value.replace(/\/+$/, '')
+    return ctx.apiUrl
+  }
+
+  var container = document.getElementById('pasos')
+  container.innerHTML = ''
+
+  STEPS.forEach(function (paso, i) {
+    var div = document.createElement('div')
+    div.className = 'paso'
+    div.id = 'paso-' + paso.id
+
+    var header = document.createElement('div')
+    header.className = 'paso-header'
+    header.innerHTML =
+      '<span class="paso-num" id="icono-' + paso.id + '">' + (i + 1) + '</span>' +
+      '<span class="paso-titulo">' + paso.titulo + '</span>' +
+      '<span class="paso-rol">' + paso.rol + '</span>' +
+      '<button class="paso-btn" id="btn-' + paso.id + '">▶ Ejecutar</button>'
+    header.addEventListener('click', function (e) {
+      if (e.target.tagName === 'BUTTON') return
+      var det = div.querySelector('.paso-detalle')
+      det.classList.toggle('abierto')
+    })
+    div.appendChild(header)
+
+    var detalle = document.createElement('div')
+    detalle.className = 'paso-detalle'
+
+    // descripcion
+    var descSec = document.createElement('div')
+    descSec.className = 'detalle-sec'
+    descSec.innerHTML = '<p style="font-size:12px;color:#555;">' + paso.desc + '</p>'
+    detalle.appendChild(descSec)
+
+    // form: login
+    if (paso.tipo === 'login') {
+      var f = document.createElement('div')
+      f.className = 'login-form'
+      f.innerHTML =
+        '<input type="text" placeholder="Correo" id="login-correo-' + paso.id + '" />' +
+        '<input type="password" placeholder="Contrasena" id="login-pass-' + paso.id + '" />' +
+        '<button id="login-btn-' + paso.id + '">Iniciar sesion</button>'
+      // pre-rellenar admin
+      if (paso.id === 'login-admin') {
+        setTimeout(function () {
+          var ce = document.getElementById('login-correo-login-admin')
+          var cp = document.getElementById('login-pass-login-admin')
+          if (ce) ce.value = 'admin@crm.com'
+          if (cp) cp.value = 'admin123'
+        }, 0)
+      }
+      detalle.appendChild(f)
+    }
+
+    // form: registro
+    if (paso.tipo === 'registro') {
+      var rf = document.createElement('div')
+      rf.className = 'registro-form'
+      paso.campos.forEach(function (c) {
+        rf.innerHTML += '<input type="' + (c.type || 'text') + '" placeholder="' + c.label + '" id="reg-' + paso.id + '-' + c.id + '" style="width:140px"' + (c.valor ? ' value="' + c.valor + '"' : '') + ' />'
+      })
+      rf.innerHTML += '<button id="reg-btn-' + paso.id + '">Registrar</button>'
+      detalle.appendChild(rf)
+    }
+
+    // form: formulario
+    if (paso.tipo === 'formulario') {
+      var ff = document.createElement('div')
+      ff.className = 'formulario-form'
+      paso.campos.forEach(function (c) {
+        var wrap = document.createElement('div')
+        wrap.className = 'campo'
+        wrap.innerHTML =
+          '<label>' + c.label + '</label>' +
+          '<input type="' + (c.type || 'text') + '" placeholder="' + c.ph + '" id="frm-' + paso.id + '-' + c.id + '"' + (c.valor ? ' value="' + c.valor + '"' : '') + ' />'
+        ff.appendChild(wrap)
+      })
+      ff.innerHTML += '<button id="frm-btn-' + paso.id + '" style="align-self:flex-end">Enviar</button>'
+      detalle.appendChild(ff)
+    }
+
+    // peticion / respuesta
+    var reqSec = document.createElement('div')
+    reqSec.className = 'detalle-sec'
+    reqSec.innerHTML = '<h4>📤 PETICION</h4><pre class="req" id="req-' + paso.id + '">—</pre>'
+    detalle.appendChild(reqSec)
+
+    var resSec = document.createElement('div')
+    resSec.className = 'detalle-sec'
+    resSec.innerHTML = '<h4>📥 RESPUESTA</h4><pre class="res" id="res-' + paso.id + '">—</pre>'
+    detalle.appendChild(resSec)
+
+    div.appendChild(detalle)
+    container.appendChild(div)
+  })
+
+  // ---- bind buttons ----
+  STEPS.forEach(function (paso) {
+    var btn = document.getElementById('btn-' + paso.id)
+    btn.addEventListener('click', async function (e) {
+      e.stopPropagation()
+      getApiUrl()
+
+      var icono = document.getElementById('icono-' + paso.id)
+      var reqPre = document.getElementById('req-' + paso.id)
+      var resPre = document.getElementById('res-' + paso.id)
+      var detalle = document.querySelector('#paso-' + paso.id + ' .paso-detalle')
+      detalle.classList.add('abierto')
+
+      // ---- LOGIN ----
+      if (paso.tipo === 'login') {
+        var correo = document.getElementById('login-correo-' + paso.id)
+        var pass = document.getElementById('login-pass-' + paso.id)
+        if (!correo || !pass) return
+        var c = correo.value.trim()
+        var p = pass.value.trim()
+        if (!c || !p) { alert('Ingresa correo y contrasena'); return }
+        var reqBody = { correo: c, contrasena: p }
+        reqPre.textContent = 'POST ' + ctx.apiUrl + '/auth/login\n' + JSON.stringify(reqBody, null, 2)
+        btn.disabled = true; btn.textContent = '...'
+        try {
+          var res = await apiFetch(ctx.apiUrl + '/auth/login', 'POST', reqBody)
+          resPre.textContent = res.status + '\n' + JSON.stringify(res.data, null, 2)
+          if (res.ok && res.data.token) {
+            ctx.tokens[paso.rolGuardar] = res.data.token
+            icono.className = 'paso-num hecho'
+            actualizarDatos(paso.id, res)
+            mostrarEstado()
+          } else {
+            icono.className = 'paso-num error'
+          }
+        } catch (err) { resPre.textContent = 'ERROR: ' + err.message; icono.className = 'paso-num error' }
+        btn.disabled = false; btn.textContent = '▶ Ejecutar'
+        return
+      }
+
+      // ---- REGISTRO ----
+      if (paso.tipo === 'registro') {
+        var body = {}
+        paso.campos.forEach(function (c) {
+          var el = document.getElementById('reg-' + paso.id + '-' + c.id)
+          body[c.id] = el ? el.value.trim() : ''
+        })
+        if (!body.nombre || !body.correo || !body.contrasena || !body.identificacion) {
+          alert('Completa todos los campos'); return
+        }
+        reqPre.textContent = paso.metodo + ' ' + ctx.apiUrl + paso.endpoint + '\n' + JSON.stringify(body, null, 2)
+        btn.disabled = true; btn.textContent = '...'
+        try {
+          var res = await apiFetch(ctx.apiUrl + paso.endpoint, paso.metodo, body)
+          resPre.textContent = res.status + '\n' + JSON.stringify(res.data, null, 2)
+          if (res.ok) {
+            icono.className = 'paso-num hecho'
+            actualizarDatos(paso.id, res)
+            autoRellenarLogin(res, paso.id)
+            mostrarEstado()
+          } else {
+            icono.className = 'paso-num error'
+          }
+        } catch (err) { resPre.textContent = 'ERROR: ' + err.message; icono.className = 'paso-num error' }
+        btn.disabled = false; btn.textContent = '▶ Ejecutar'
+        return
+      }
+
+      // ---- FORMULARIO ----
+      if (paso.tipo === 'formulario') {
+        // check token requerido
+        if (paso.necesitaToken) {
+          var tk = ctx.tokens[paso.necesitaToken]
+          if (!tk) {
+            resPre.textContent = '⚠ Falta token de ' + paso.necesitaToken + '. Inicia sesion primero.'
+            icono.className = 'paso-num error'
+            return
+          }
+        }
+        var body = {}
+        paso.campos.forEach(function (c) {
+          var el = document.getElementById('frm-' + paso.id + '-' + c.id)
+          body[c.id] = el ? el.value.trim() : ''
+        })
+        if (!body.nombre || !body.correo || !body.contrasena) {
+          alert('Completa al menos nombre, correo y contrasena'); return
+        }
+        var tokenUsar = paso.necesitaToken ? ctx.tokens[paso.necesitaToken] : null
+        reqPre.textContent = paso.metodo + ' ' + ctx.apiUrl + paso.endpoint + '\n' + JSON.stringify(body, null, 2)
+        btn.disabled = true; btn.textContent = '...'
+        try {
+          var res = await apiFetch(ctx.apiUrl + paso.endpoint, paso.metodo, body, tokenUsar)
+          resPre.textContent = res.status + '\n' + JSON.stringify(res.data, null, 2)
+          if (res.ok) {
+            icono.className = 'paso-num hecho'
+            actualizarDatos(paso.id, res)
+            mostrarEstado()
+          } else {
+            icono.className = 'paso-num error'
+          }
+        } catch (err) { resPre.textContent = 'ERROR: ' + err.message; icono.className = 'paso-num error' }
+        btn.disabled = false; btn.textContent = '▶ Ejecutar'
+        return
+      }
+
+      // ---- SIMULACION ----
+      if (paso.tipo === 'simulacion') {
+        reqPre.textContent = '(simulado)'
+        btn.disabled = true; btn.textContent = '...'
+        try {
+          var res = await paso.action(ctx)
+          resPre.textContent = res ? JSON.stringify(res, null, 2) : '(cancelado)'
+          if (res && !res._error) icono.className = 'paso-num hecho'
+          else if (res && res._error) icono.className = 'paso-num error'
+        } catch (err) { resPre.textContent = 'ERROR: ' + err.message; icono.className = 'paso-num error' }
+        btn.disabled = false; btn.textContent = '▶ Ejecutar'
+        return
+      }
+
+      // ---- ACCION ----
+      if (paso.requiereDato) {
+        var mal = false
+        paso.requiereDato.split(',').forEach(function (r) {
+          var keys = MAPA_DATOS[r.trim()]
+          if (keys && keys.every(function (k) { return !ctx.datos[k] })) {
+            mal = true
+            alert('Falta: ' + r.trim() + '. Completa pasos anteriores.')
+          }
+        })
+        if (mal) return
+      }
+
+      reqPre.textContent = paso.metodo + ' ' + (paso.ruta || '(ver logica)')
+      btn.disabled = true; btn.textContent = '...'
+      try {
+        var res = await paso.action(ctx)
+        if (res === null) {
+          resPre.textContent = '(cancelado)'
+          btn.disabled = false; btn.textContent = '▶ Ejecutar'
+          return
+        }
+        if (res._error) {
+          resPre.textContent = '⚠ ' + res._error
+          icono.className = 'paso-num error'
+        } else if (res._simulado) {
+          resPre.textContent = JSON.stringify(res, null, 2)
+          icono.className = 'paso-num hecho'
+        } else {
+          var s = res.status ? 'Status: ' + res.status : ''
+          resPre.textContent = s + '\n' + JSON.stringify(res.data, null, 2)
+          if (res.ok) {
+            icono.className = 'paso-num hecho'
+            actualizarDatos(paso.id, res)
+            mostrarEstado()
+          } else {
+            icono.className = 'paso-num error'
+          }
+        }
+      } catch (err) { resPre.textContent = 'ERROR: ' + err.message; icono.className = 'paso-num error' }
+      btn.disabled = false; btn.textContent = '▶ Ejecutar'
+    })
+
+    // login button
+    if (paso.tipo === 'login') {
+      var loginBtn = document.getElementById('login-btn-' + paso.id)
+      if (loginBtn) {
+        loginBtn.addEventListener('click', function () { document.getElementById('btn-' + paso.id).click() })
+      }
+    }
+
+    // registro button
+    if (paso.tipo === 'registro') {
+      var regBtn = document.getElementById('reg-btn-' + paso.id)
+      if (regBtn) {
+        regBtn.addEventListener('click', function () { document.getElementById('btn-' + paso.id).click() })
+      }
+    }
+
+    // formulario button
+    if (paso.tipo === 'formulario') {
+      var frmBtn = document.getElementById('frm-btn-' + paso.id)
+      if (frmBtn) {
+        frmBtn.addEventListener('click', function () { document.getElementById('btn-' + paso.id).click() })
+      }
+    }
+  })
+
+  mostrarEstado()
+}
+
+function mostrarEstado() {
+  var html = '<strong>Estado actual:</strong><br>' +
+    '👤 Cliente ID: <b>' + (ctx.datos.clienteId || '—') + '</b> | ' +
+    '👤 Abogado ID: <b>' + (ctx.datos.abogadoUserId || '—') + '</b><br>' +
+    '📅 Abogado seleccion: <b>' + (ctx.datos.abogadoId || '—') + '</b> | ' +
+    '📆 Slot: <b>' + (ctx.datos.calendarioId || '—') + '</b><br>' +
+    '📋 Cita: <b>' + (ctx.datos.citaId || '—') + '</b> | ' +
+    '💬 Chatbot: <b>' + (ctx.datos.resumenChatbot ? '✓' : '—') + '</b><br>' +
+    '🔑 Tokens: Cliente ' + (ctx.tokens.cliente ? '✓' : '✗') +
+    ' | Abogado ' + (ctx.tokens.abogado ? '✓' : '✗') +
+    ' | Admin ' + (ctx.tokens.admin ? '✓' : '✗')
+  var el = document.getElementById('loginPrompt')
+  if (el) el.innerHTML = html
+}
+
+document.addEventListener('DOMContentLoaded', init)
+</script>
+</div>
+</body>
+</html>
