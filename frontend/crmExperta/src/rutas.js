@@ -5,6 +5,10 @@ import admin from './components/admin.vue'
 import loginPerfil from './components/loginPerfil.vue'
 import crearPerfil from './components/crearPerfil.vue'
 import recuperarContrasena from './components/recuperarContrasena.vue'
+import abogados from './components/abogados.vue'
+import citas from './components/citas.vue'
+import documentos from './components/documentos.vue'
+import chatbot from './components/chatbot.vue'
 const rutas = [
     {
         path: '/frontendCRM',
@@ -29,6 +33,22 @@ const rutas = [
     {
         path: '/recuperarContrasena',
         component: recuperarContrasena
+    },
+    {
+        path: '/abogados',
+        component: abogados
+    },
+    {
+        path: '/citas',
+        component: citas
+    },
+    {
+        path: '/documentos',
+        component: documentos
+    },
+    {
+        path: '/chatbot',
+        component: chatbot
     },
     {
         path: '/:pathMatch(.*)*',

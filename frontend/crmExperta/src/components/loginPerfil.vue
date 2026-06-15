@@ -1,18 +1,32 @@
 <script setup>
 
 </script>
-//debo hacerlo funcionar con el boton de Inicio de sesion de Inicio CRM
+
 <template>
-  <div class="input-group mb-3">
-    <span class="input-group-text" id="basic-addon1">✉️</span>
-    <input type="email" class="form-control" placeholder="Correo electrónico" aria-label="correoElectronico" aria-describedby="basic-addon1">
+  <div class="container mt-5 text-center">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card p-5">
+          <h2 class="mb-4">Iniciar Sesión</h2>
+          <form>
+            <div class="mb-3">
+              <label for="email" class="form-label">Correo Electrónico</label>
+              <input type="email" class="form-control" id="email" placeholder="tu@correo.com" required>
+            </div>
+            <div class="mb-3">
+              <label for="password" class="form-label">Contraseña</label>
+              <input type="password" class="form-control" id="password" placeholder="Contraseña" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+          </form>
+          <div class="mt-3">
+            <RouterLink to="/recuperarContrasena" class="text-decoration-none">¿Olvidaste tu contraseña?</RouterLink>
+          </div>
+          <div class="mt-2">
+            <RouterLink to="/inicioCRM" class="btn btn-secondary w-100">Volver</RouterLink>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="input-group mb-3">
-    <span class="input-group-text" id="basic-addon1">🕶️</span>
-    <input type="password" class="form-control" placeholder="Contraseña" aria-label="contrasena" aria-describedby="basic-addon1">
-  </div>
-  <div>
-    <RouterLink to="/inicioCRM"> Inicio CRM </RouterLink>
-    <RouterLink to="/recuperarContrasena"> Recuperar contraseña </RouterLink>
-  </div>
-  </template>
+</template>
