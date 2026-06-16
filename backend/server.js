@@ -37,16 +37,13 @@ for (var mod of MODULOS_ACTIVOS) {
 
 APP.use(manejoDeErrores)
 
-async function iniciar() {
-    await probarConexion()
+probarConexion()
+  .then(() => {
     APP.listen(PUERTO, () => {
-      console.log('Servidor en http://localhost:' + PUERTO)
+      console.log('Servidor corriendo en ' + PUERTO)
     })
-}
-
-try {
-  iniciar()
-} catch (e) {
-  console.error('error al iniciar:', e.message)
-  process.exit(1)
-}
+  })
+  .catch(e => {
+    console.error('error al iniciar:', e.message)
+    process.exit(1)
+  })

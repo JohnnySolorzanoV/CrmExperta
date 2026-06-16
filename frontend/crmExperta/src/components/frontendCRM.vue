@@ -16,16 +16,7 @@
           <div class="card-body">
             <h5 class="card-title">📋 Agendar Cita</h5>
             <p class="card-text">Selecciona un abogado y agenda tu consulta en línea de forma rápida y segura.</p>
-            <RouterLink to="/crearPerfil" class="btn btn-primary">Agendar Cita</RouterLink>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title">👨‍⚖️ Panel de Abogado</h5>
-            <p class="card-text">Accede a tu panel de control para ver citas, calendario y documentación.</p>
-            <RouterLink to="/abogados" class="btn btn-primary">Mi Panel</RouterLink>
+            <RouterLink to="/citas" class="btn btn-primary">Agendar Cita</RouterLink>
           </div>
         </div>
       </div>

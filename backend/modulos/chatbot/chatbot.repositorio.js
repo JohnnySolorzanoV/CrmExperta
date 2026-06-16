@@ -4,7 +4,7 @@ import { Chatbot } from '../../entidades/chatbot.js'
 export async function obtenerHistorial(idUsuario) {
   var r = await ejecutarConsulta(
     `SELECT id, id_usuario as "idUsuario", chat_log as "chatLog", fecha
-     FROM Chatbot WHERE id_usuario = $1 ORDER BY fecha DESC`,
+     FROM Chatbot WHERE id_usuario = $1 ORDER BY fecha ASC`,
     [idUsuario]
   )
   return r.rows.map(row => new Chatbot(row))
@@ -18,4 +18,11 @@ export async function crear(consulta) {
     [consulta.idUsuario, consulta.chatLog]
   )
   return new Chatbot(r.rows[0])
+}
+
+export async function actualizarLog(id, chatLog) {
+  await ejecutarConsulta(
+    `UPDATE Chatbot SET chat_log = $1 WHERE id = $2`,
+    [chatLog, id]
+  )
 }

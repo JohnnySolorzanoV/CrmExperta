@@ -9,6 +9,7 @@ import abogados from './components/abogados.vue'
 import citas from './components/citas.vue'
 import documentos from './components/documentos.vue'
 import chatbot from './components/chatbot.vue'
+import inicioAbogado from './components/inicioAbogado.vue'
 const rutas = [
     {
         path: '/frontendCRM',
@@ -45,6 +46,10 @@ const rutas = [
     {
         path: '/documentos',
         component: documentos
+    },
+    {
+        path: '/inicioAbogado',
+        component: inicioAbogado
     },
     {
         path: '/chatbot',

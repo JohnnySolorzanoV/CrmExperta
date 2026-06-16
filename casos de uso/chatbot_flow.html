@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Chatbot IA — CRM Experta</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #f5f5f5; padding: 20px; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 5px; }
+  .container { max-width: 800px; margin: 0 auto; }
+
+  .config { background: #e8e8e8; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+  .config label { display: inline-block; width: 70px; font-size: 12px; }
+  .config input { width: 300px; padding: 3px 6px; font-size: 12px; font-family: monospace; border: 1px solid #aaa; }
+
+  .card { background: #fff; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; overflow: hidden; }
+  .card-header { padding: 8px 10px; font-weight: bold; font-size: 13px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 10px; }
+
+  .login-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .login-form input { padding: 5px 8px; font-size: 12px; border: 1px solid #aaa; border-radius: 2px; font-family: monospace; }
+  .login-form input { width: 160px; }
+  .login-form button, .chat-input button { padding: 5px 12px; font-size: 11px; cursor: pointer; font-family: monospace; }
+
+  #chatBox {
+    height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;
+    padding: 10px; background: #fafafa; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .msg { padding: 8px 10px; border-radius: 6px; max-width: 85%; font-size: 12px; line-height: 1.5; }
+  .msg.user { background: #d4edda; align-self: flex-end; border: 1px solid #b8daff; }
+  .msg.ai { background: #e8e8f8; align-self: flex-start; border: 1px solid #ccccee; white-space: pre-wrap; }
+  .msg.system { background: #fff3cd; align-self: center; border: 1px solid #ffeeba; font-size: 11px; font-style: italic; }
+  .msg .meta { font-size: 9px; color: #888; margin-top: 4px; }
+  .msg .agendar-btn { margin-top: 6px; display: inline-block; padding: 4px 10px; background: #2a7; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; font-family: monospace; }
+  .msg .agendar-btn:hover { background: #1a6; }
+
+  .chat-input { display: flex; gap: 6px; }
+  .chat-input input { flex: 1; padding: 6px 8px; font-size: 12px; border: 1px solid #aaa; border-radius: 2px; font-family: monospace; }
+
+  .info-box { background: #fffbe6; border: 1px solid #e6d; padding: 8px 10px; font-size: 12px; border-radius: 4px; margin-bottom: 10px; }
+  .badge { font-size: 10px; background: #ddd; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; }
+  .btn-sec { padding: 3px 8px; font-size: 11px; cursor: pointer; font-family: monospace; border: 1px solid #888; background: #eee; border-radius: 3px; }
+  .btn-sec:hover { background: #ddd; }
+
+  .historial-item { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+  .historial-item:last-child { border-bottom: none; }
+  .historial-item b { color: #555; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🤖 Chatbot IA — CRM Experta</h1>
+<p style="font-size:12px;color:#555;margin-bottom:10px;">
+  Prueba del chatbot con IA vía Poe API. Inicia sesión como cliente y conversa.
+</p>
+
+<div class="config">
+  <label>API URL:</label>
+  <input id="apiUrl" value="http://localhost:3000/api" />
+</div>
+
+<div class="info-box" id="statusBox">
+  <strong>Estado:</strong> esperando inicio de sesión...
+</div>
+
+<!-- Login -->
+<div class="card" id="loginCard">
+  <div class="card-header">
+    <span>🔑 Iniciar sesión como cliente</span>
+    <span class="badge">cliente</span>
+  </div>
+  <div class="card-body">
+    <div class="login-form">
+      <input type="text" placeholder="Correo" id="loginCorreo" value="juan@mail.com" />
+      <input type="password" placeholder="Contraseña" id="loginPass" value="cliente123" />
+      <button id="loginBtn">Iniciar sesión</button>
+      <button class="btn-sec" id="regBtn">Registrar nuevo</button>
+    </div>
+    <div style="margin-top:6px;font-size:11px;color:#888;">
+      Admin: admin@crm.com / admin123 &nbsp;|&nbsp;
+      Abogado: maria@bufete.com / clave123
+    </div>
+  </div>
+</div>
+
+<!-- Chat -->
+<div class="card" id="chatCard" style="display:none;">
+  <div class="card-header">
+    <span>💬 Chat con IA</span>
+    <span class="badge" id="userBadge">—</span>
+    <button class="btn-sec" style="margin-left:auto;" id="btnNuevoChat">Nuevo chat</button>
+    <button class="btn-sec" id="btnCerrarSesion">Cerrar sesión</button>
+  </div>
+  <div class="card-body">
+    <div id="chatBox">
+      <div class="msg system">Inicia una conversación con el asistente legal.</div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Escribe tu mensaje..." />
+      <button id="sendBtn">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Historial -->
+<div class="card" id="historialCard">
+  <div class="card-header">
+    <span>📋 Historial de conversaciones</span>
+    <button class="btn-sec" style="margin-left:auto;" id="btnRefrescarHistorial">Refrescar</button>
+  </div>
+  <div class="card-body" id="historialBody">
+    <div style="font-size:11px;color:#888;">Inicia sesión para ver el historial.</div>
+  </div>
+</div>
+
+<!-- Preguntas sugeridas -->
+<div class="card" id="sugerenciasCard">
+  <div class="card-header">
+    <span>💡 Preguntas para probar</span>
+  </div>
+  <div class="card-body" style="display:flex;flex-wrap:wrap;gap:6px;" id="sugerenciasBody">
+    <button class="btn-sec" onclick="sugerirPregunta('¿Qué servicios legales ofrecen?')">¿Qué servicios legales ofrecen?</button>
+    <button class="btn-sec" onclick="sugerirPregunta('¿Cómo puedo agendar una cita?')">¿Cómo puedo agendar una cita?</button>
+    <button class="btn-sec" onclick="sugerirPregunta('¿Cuáles son los horarios de atención?')">¿Cuáles son los horarios de atención?</button>
+    <button class="btn-sec" onclick="sugerirPregunta('Necesito agendar una consulta por divorcio')">Agendar consulta: divorcio</button>
+    <button class="btn-sec" onclick="sugerirPregunta('¿Qué documentos necesito para iniciar un proceso laboral?')">Docs para proceso laboral</button>
+    <button class="btn-sec" onclick="sugerirPregunta('Quiero saber el estado de mi caso')">Estado de mi caso</button>
+    <button class="btn-sec" onclick="sugerirPregunta('¿Cuánto cuesta una consulta inicial?')">¿Cuánto cuesta una consulta?</button>
+    <button class="btn-sec" onclick="sugerirPregunta('Hola, buenos días')">Saludo inicial</button>
+  </div>
+</div>
+
+<script>
+// ---- util ----
+async function apiFetch(url, method, body, token) {
+  var headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = 'Bearer ' + token
+  var opts = { method, headers }
+  if (body) opts.body = JSON.stringify(body)
+  var res = await fetch(url, opts)
+  var data = await res.json().catch(function () { return { raw: '(error parseando respuesta)' } })
+  return { status: res.status, ok: res.ok, data: data }
+}
+
+// ---- estado ----
+var estado = {
+  apiUrl: '',
+  token: null,
+  usuario: null,
+  chatActivo: true, // si es false, no enviar mas mensajes (esperando agendar)
+  ultimaRespuesta: null,
+  userId: null
+}
+
+function getApiUrl() {
+  estado.apiUrl = document.getElementById('apiUrl').value.replace(/\/+$/, '')
+  return estado.apiUrl
+}
+
+// ---- chat ----
+var chatBox = document.getElementById('chatBox')
+var chatInput = document.getElementById('chatInput')
+var sendBtn = document.getElementById('sendBtn')
+
+function agregarMensaje(role, texto, extraHTML) {
+  var div = document.createElement('div')
+  div.className = 'msg ' + role
+  div.textContent = texto
+  if (extraHTML) {
+    var extra = document.createElement('div')
+    extra.innerHTML = extraHTML
+    div.appendChild(extra)
+  }
+  var meta = document.createElement('div')
+  meta.className = 'meta'
+  meta.textContent = new Date().toLocaleTimeString()
+  div.appendChild(meta)
+  chatBox.appendChild(div)
+  chatBox.scrollTop = chatBox.scrollHeight
+}
+
+function agregarHTML(role, html) {
+  var div = document.createElement('div')
+  div.className = 'msg ' + role
+  div.innerHTML = html
+  var meta = document.createElement('div')
+  meta.className = 'meta'
+  meta.textContent = new Date().toLocaleTimeString()
+  div.appendChild(meta)
+  chatBox.appendChild(div)
+  chatBox.scrollTop = chatBox.scrollHeight
+}
+
+function sugerirPregunta(texto) {
+  chatInput.value = texto
+  chatInput.focus()
+  if (estado.token) enviarMensaje()
+}
+
+async function enviarMensaje() {
+  var texto = chatInput.value.trim()
+  if (!texto || !estado.token || !estado.chatActivo) return
+
+  chatInput.value = ''
+  agregarMensaje('user', texto)
+  sendBtn.disabled = true
+  sendBtn.textContent = '...'
+
+  try {
+    var res = await apiFetch(estado.apiUrl + '/chatbot/consultar', 'POST', {
+      idUsuario: estado.userId,
+      mensaje: texto
+    }, estado.token)
+
+    if (res.ok && res.data) {
+      var d = res.data
+      if (d.agendar) {
+        // la IA detecto que quiere agendar
+        var btnHtml = '<button class="agendar-btn" onclick="agendarCitaDesdeChat(\'' + encodeURIComponent(JSON.stringify(d.agendar)) + '\')">📅 Agendar cita ahora</button>'
+        agregarHTML('ai', d.respuesta + '<br><br>📌 <b>¿Quieres agendar una cita?</b>')
+        agregarHTML('system', btnHtml)
+        estado.chatActivo = false
+        estado.ultimaRespuesta = d
+      } else {
+        agregarMensaje('ai', d.respuesta)
+        estado.ultimaRespuesta = d
+      }
+    } else {
+      agregarMensaje('system', 'Error: ' + (res.data?.error || 'desconocido'))
+    }
+  } catch (err) {
+    agregarMensaje('system', 'Error de conexión: ' + err.message)
+  }
+
+  sendBtn.disabled = false
+  sendBtn.textContent = 'Enviar'
+  chatInput.focus()
+}
+
+async function agendarCitaDesdeChat(agendarStr) {
+  var agendar = JSON.parse(decodeURIComponent(agendarStr))
+  if (!agendar.resumen) return
+
+  agregarMensaje('system', 'Agendando cita...')
+
+  try {
+    var res = await apiFetch(estado.apiUrl + '/chatbot/agendar', 'POST', {
+      idCliente: estado.userId,
+      resumen: agendar.resumen,
+      tipoConsulta: agendar.tipoConsulta,
+      motivo: agendar.motivo
+    }, estado.token)
+
+    if (res.ok && res.data) {
+      agregarHTML('system',
+        '✅ <b>Cita agendada exitosamente</b><br>' +
+        '📋 Resumen: ' + (agendar.resumen.substring(0, 100)) + '<br>' +
+        '🆔 ID Cita: ' + (res.data.cita?.id || '—')
+      )
+    } else {
+      agregarMensaje('system', 'Error al agendar: ' + (res.data?.error || 'desconocido'))
+    }
+  } catch (err) {
+    agregarMensaje('system', 'Error de conexión: ' + err.message)
+  }
+}
+
+// ---- login / registro ----
+async function iniciarSesion() {
+  var correo = document.getElementById('loginCorreo').value.trim()
+  var pass = document.getElementById('loginPass').value.trim()
+  if (!correo || !pass) { alert('Ingresa correo y contraseña'); return }
+
+  getApiUrl()
+  try {
+    var res = await apiFetch(estado.apiUrl + '/auth/login', 'POST', { correo, contrasena: pass })
+    if (res.ok && res.data.token) {
+      estado.token = res.data.token
+      estado.usuario = res.data.usuario
+      estado.userId = res.data.usuario.id
+      estado.chatActivo = true
+
+      document.getElementById('loginCard').style.display = 'none'
+      document.getElementById('chatCard').style.display = 'block'
+      document.getElementById('userBadge').textContent = estado.usuario.nom + ' (ID:' + estado.userId + ')'
+
+      actualizarEstado('Sesión iniciada como <b>' + estado.usuario.nom + '</b>')
+      chatBox.innerHTML = '<div class="msg system">Hola <b>' + estado.usuario.nom + '</b>! Soy el asistente legal. ¿En qué puedo ayudarte?</div>'
+      chatInput.focus()
+
+      cargarHistorial()
+    } else {
+      alert('Error: ' + (res.data?.error || 'Credenciales inválidas'))
+    }
+  } catch (err) {
+    alert('Error de conexión: ' + err.message)
+  }
+}
+
+async function registrarCliente() {
+  getApiUrl()
+  try {
+    var res = await apiFetch(estado.apiUrl + '/auth/registro', 'POST', {
+      identificacion: String(Math.floor(Math.random() * 90000000) + 10000000),
+      nombre: 'Cliente Chat ' + new Date().toLocaleTimeString(),
+      correo: 'chat' + Date.now() + '@mail.com',
+      contrasena: 'test123'
+    })
+    if (res.ok && res.data.usuario) {
+      document.getElementById('loginCorreo').value = res.data.usuario.correo || res.data.usuario.mail
+      document.getElementById('loginPass').value = 'test123'
+      alert('Cliente creado: ' + (res.data.usuario.correo || res.data.usuario.mail) + ' / test123')
+      iniciarSesion()
+    } else {
+      alert('Error: ' + (res.data?.error || 'No se pudo registrar'))
+    }
+  } catch (err) {
+    alert('Error de conexión: ' + err.message)
+  }
+}
+
+function cerrarSesion() {
+  estado.token = null
+  estado.usuario = null
+  estado.userId = null
+  estado.chatActivo = true
+  document.getElementById('chatCard').style.display = 'none'
+  document.getElementById('loginCard').style.display = 'block'
+  chatBox.innerHTML = '<div class="msg system">Inicia una conversación con el asistente legal.</div>'
+  actualizarEstado('Sesión cerrada')
+}
+
+function nuevoChat() {
+  chatBox.innerHTML = '<div class="msg system">Nueva conversación iniciada. ¿En qué puedo ayudarte?</div>'
+  estado.chatActivo = true
+  estado.ultimaRespuesta = null
+  chatInput.focus()
+}
+
+// ---- historial ----
+async function cargarHistorial() {
+  if (!estado.token || !estado.userId) return
+  getApiUrl()
+  try {
+    var res = await apiFetch(estado.apiUrl + '/chatbot/historial/' + estado.userId, 'GET', null, estado.token)
+    var body = document.getElementById('historialBody')
+    if (res.ok && res.data.historial && res.data.historial.length > 0) {
+      body.innerHTML = res.data.historial.map(function (e) {
+        try {
+          var log = JSON.parse(e.chatLog)
+          return '<div class="historial-item"><b>Tú:</b> ' + escapeHtml(log.pregunta) + '<br><b>IA:</b> ' + escapeHtml(log.respuesta.substring(0, 120)) + (log.respuesta.length > 120 ? '...' : '') + ' <span style="color:#999;font-size:10px;">(' + new Date(e.fecha).toLocaleString() + ')</span></div>'
+        } catch (_) {
+          return '<div class="historial-item"><span style="color:#999;">(conversación #' + e.id + ')</span></div>'
+        }
+      }).join('')
+    } else {
+      body.innerHTML = '<div style="font-size:11px;color:#888;">No hay conversaciones aún.</div>'
+    }
+  } catch (err) {
+    // ignorar
+  }
+}
+
+function escapeHtml(t) {
+  if (!t) return ''
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+function actualizarEstado(msg) {
+  document.getElementById('statusBox').innerHTML = '<strong>Estado:</strong> ' + msg +
+    (estado.token ? ' | 🔑 Token: ✓' : '')
+}
+
+// ---- bind events ----
+document.getElementById('loginBtn').addEventListener('click', iniciarSesion)
+document.getElementById('regBtn').addEventListener('click', registrarCliente)
+document.getElementById('sendBtn').addEventListener('click', enviarMensaje)
+document.getElementById('btnNuevoChat').addEventListener('click', nuevoChat)
+document.getElementById('btnCerrarSesion').addEventListener('click', cerrarSesion)
+document.getElementById('btnRefrescarHistorial').addEventListener('click', cargarHistorial)
+
+chatInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    enviarMensaje()
+  }
+})
+
+document.getElementById('loginPass').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') iniciarSesion()
+})
+</script>
+</div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import pg from 'pg'
 import bcrypt from 'bcrypt'
 
-var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
+var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5433/crm_experta'
 
 var CORREO_ADMIN = 'admin@crm.com'
 var PASS_ADMIN = 'admin123'
