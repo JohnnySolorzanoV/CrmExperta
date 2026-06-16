@@ -11,48 +11,19 @@
     <div class="table-responsive">
       <table class="table table-striped table-hover">
         <thead class="table-dark">
-          <tr>
-            <th>Nombre</th>
-            <th>Especialidad</th>
-            <th>Licencia</th>
-            <th>Correo</th>
-            <th>Teléfono</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
+          <th>Especialidad</th>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Nm celular</th>
+          <th>Nm licencia</th>
+        </thead>  
         <tbody>
           <tr>
-            <td>Ana Pérez</td>
-            <td>Derecho Civil</td>
-            <td>LIC-2024-001</td>
-            <td>ana.perez@experta.com</td>
-            <td>+57 1 2345678</td>
-            <td>
-              <button class="btn btn-sm btn-info me-2">Editar</button>
-              <button class="btn btn-sm btn-danger">Eliminar</button>
-            </td>
-          </tr>
-          <tr>
-            <td>Luis Gómez</td>
-            <td>Derecho Laboral</td>
-            <td>LIC-2024-002</td>
-            <td>luis.gomez@experta.com</td>
-            <td>+57 1 9876543</td>
-            <td>
-              <button class="btn btn-sm btn-info me-2">Editar</button>
-              <button class="btn btn-sm btn-danger">Eliminar</button>
-            </td>
-          </tr>
-          <tr>
-            <td>María López</td>
-            <td>Derecho Mercantil</td>
-            <td>LIC-2024-003</td>
-            <td>maria.lopez@experta.com</td>
-            <td>+57 1 5555555</td>
-            <td>
-              <button class="btn btn-sm btn-info me-2">Editar</button>
-              <button class="btn btn-sm btn-danger">Eliminar</button>
-            </td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
           </tr>
         </tbody>
       </table>

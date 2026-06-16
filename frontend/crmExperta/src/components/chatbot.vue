@@ -97,19 +97,19 @@
         <!-- FAQ Section -->
         <div class="card mt-4">
           <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">❓ Preguntas Frecuentes</h5>
+            <h5 class="mb-0">PREGUNTAS FRECUENTES</h5>
           </div>
           <div class="card-body">
             <div class="accordion" id="faqAccordion">
               <div class="accordion-item">
                 <h2 class="accordion-header">
                   <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                    ¿Qué tipos de servicios legales ofrecen?
+                    ¿Qué tipos de servicios legales ofrecemos?
                   </button>
                 </h2>
                 <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                   <div class="accordion-body">
-                    Ofrecemos servicios en las siguientes áreas: Derecho Civil, Derecho Laboral, Derecho Mercantil, Derecho Penal y Derecho Constitucional. Cada especialista tiene años de experiencia en su área.
+                    Ofrecemos servicios en las siguientes áreas: defensa familiar, derecho constitucional, derecho civil, leyes de transito y derecho sucesorio.
                   </div>
                 </div>
               </div>
@@ -121,7 +121,7 @@
                 </h2>
                 <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                   <div class="accordion-body">
-                    Atendemos de lunes a viernes de 9:00 AM a 6:00 PM, y sábados de 10:00 AM a 2:00 PM. Para emergencias fuera de horario, contáctanos al +57 1 2345678.
+                    Atendemos de lunes a viernes de 8:00 AM a 6:00 PM (Una solo jornada).
                   </div>
                 </div>
               </div>
@@ -133,7 +133,7 @@
                 </h2>
                 <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                   <div class="accordion-body">
-                    Sí, ofrecemos consultas virtuales por videoconferencia. Al agendar tu cita, selecciona la opción de consulta virtual.
+                    No, al usted registrar su cita debe acercarse a nuestras oficinas ubicadas en la calle Imbabura entre Bolivar y Fernando Valdivieso 158-14.
                   </div>
                 </div>
               </div>
@@ -157,7 +157,7 @@
                 </h2>
                 <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                   <div class="accordion-body">
-                    Aceptamos pagos en efectivo, transferencia bancaria, tarjeta de crédito y débito. Contáctanos para negociar planes de pago.
+                    Aceptamos pagos en efectivo, transferencia bancaria, tarjeta de crédito y débito. 
                   </div>
                 </div>
               </div>
@@ -167,10 +167,10 @@
 
         <!-- Contact Info -->
         <div class="alert alert-info mt-4">
-          <h5>📞 Contacto Directo</h5>
-          <p class="mb-1"><strong>Teléfono:</strong> +57 1 2345678</p>
-          <p class="mb-1"><strong>Correo:</strong> contacto@experta.com</p>
-          <p class="mb-0"><strong>Dirección:</strong> Carrera 5 #10-50, Bogotá, Colombia</p>
+          <h5>📞 CONTACTOS</h5>
+          <p class="mb-1"><strong>Teléfono:</strong>09924711991</p>
+          <p class="mb-1"><strong>Correo:</strong> expertaabogados@gmail.com</p>
+          <p class="mb-0"><strong>Dirección:</strong>Imbabura entre Bolivar y Fernando Valdivieso 158-14</p>
         </div>
       </div>
     </div>

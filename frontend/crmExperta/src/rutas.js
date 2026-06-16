@@ -1,4 +1,4 @@
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createWebHistory, createRouter } from 'vue-router'
 import frontendCRM from './components/frontendCRM.vue'
 import inicioCRM from './components/inicioCRM.vue'
 import admin from './components/admin.vue'
@@ -56,6 +56,6 @@ const rutas = [
     }
 ];
 export const router = createRouter({
-    history: createMemoryHistory(),
+    history: createWebHistory(),
     routes: rutas
 })
