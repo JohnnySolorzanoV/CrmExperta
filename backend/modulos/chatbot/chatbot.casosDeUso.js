@@ -24,7 +24,7 @@ PREGUNTAS FRECUENTES:
 - ¿Cuanto dura una consulta inicial? Aproximadamente 30-45 minutos.
 - ¿Que documentos necesito llevar? Identificacion oficial y cualquier documento relacionado al caso.
 - ¿Cuales son los costos? La consulta inicial es gratuita. Los costos posteriores se acuerdan con el abogado.
-- ¿Que tipos de casos atienden? Familia, civil, laboral, penal, mercantil y mas.
+- ¿Que tipos de casos atienden? Ofrecemos servicios en las siguientes áreas: defensa familiar, derecho constitucional, derecho civil, leyes de transito y derecho sucesorio.
 `
 
 async function obtenerContextoCRM(idUsuario) {

@@ -45,9 +45,9 @@ export async function iniciarSesion({ correo, contrasena }) {
     token: TOKEN,
     usuario: {
       id: userr.id,
-      ide: userr.identificacion,
-      nom: userr.nombre,
-      mail: userr.correo,
+      identificacion: userr.identificacion,
+      nombre: userr.nombre,
+      correo: userr.correo,
       roles: ROLES_DEL_USER
     }
   }

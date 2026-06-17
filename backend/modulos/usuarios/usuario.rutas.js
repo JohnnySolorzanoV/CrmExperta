@@ -7,7 +7,7 @@ import {
 
 var router = Rt()
 
-router.use(verificarToken, verificarRol('administrador'))
+//router.use(verificarToken, verificarRol('administrador'))
 
 router.post('/', async (req, res, next) => {
   try {

@@ -1,7 +1,9 @@
 <script setup>
 import { RouterView, useRoute, RouterLink } from 'vue-router'
 import imgCRM from './assets/logoExperta.png'
+import { useUsuarioStore } from './stores/usuariostore'
 const route = useRoute()
+const usuarioStore = useUsuarioStore()
 </script>
 
 <template>
@@ -14,8 +16,9 @@ const route = useRoute()
         EXPERTA&ABOGADOS
       </a>
     </div>
-  </nav>
-  <nav class="container m-center text-center mb-5 mt-2">
+  </nav>  
+    {{ usuarioStore.usuario }}  
+    <nav class="container m-center text-center mb-5 mt-2">
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/frontendCRM "> Inicio Cliente </RouterLink>
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/inicioCRM"> Inicio CRM </RouterLink>
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/admin"> Admin </RouterLink>

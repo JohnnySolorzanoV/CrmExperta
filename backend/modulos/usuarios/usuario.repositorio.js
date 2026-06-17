@@ -15,6 +15,7 @@ export async function crear(datos) {
      RETURNING ${CAMPOS_USUARIO}`,
     [datos.identificacion, datos.nombre, datos.correo, datos.contrasena]
   )
+  var r2 = await sqlExec('INSERT INTO Cliente (id_usuario) VALUES ($1)', [r.rows[0].id]);
   return new Usuario(r.rows[0])
 }
 
