@@ -20,7 +20,7 @@ const usuarioStore = useUsuarioStore()
     {{ usuarioStore.usuario }}  
     <nav class="container m-center text-center mb-5 mt-2">
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/frontendCRM "> Inicio Cliente </RouterLink>
-    <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/inicioCRM"> Inicio CRM </RouterLink>
+    <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/inicio"> Inicio </RouterLink>
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/admin"> Admin </RouterLink>
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/loginPerfil"> Iniciar sesión </RouterLink>
     <RouterLink type="button" class="btn btn-primary mx-1 my-1" to="/crearPerfil"> Registrarse </RouterLink>

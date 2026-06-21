@@ -1,6 +1,6 @@
 import { createWebHistory, createRouter } from 'vue-router'
 import frontendCRM from './components/frontendCRM.vue'
-import inicioCRM from './components/inicioCRM.vue'
+import inicio from './components/inicio.vue'
 import admin from './components/admin.vue'
 import loginPerfil from './components/loginPerfil.vue'
 import crearPerfil from './components/crearPerfil.vue'
@@ -16,8 +16,8 @@ const rutas = [
         component: frontendCRM
     },
     {
-        path: '/inicioCRM',
-        component: inicioCRM
+        path: '/inicio',
+        component: inicio
     },
     {
         path: '/admin',

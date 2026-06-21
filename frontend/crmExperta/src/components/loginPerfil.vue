@@ -44,7 +44,7 @@ async function iniciarSesion() {
             <RouterLink to="/recuperarContrasena" class="text-decoration-none">¿Olvidaste tu contraseña?</RouterLink>
           </div>
           <div class="mt-2">
-            <RouterLink to="/inicioCRM" class="btn btn-secondary w-100">Volver</RouterLink>
+            <RouterLink to="/inicio" class="btn btn-secondary w-100">Volver</RouterLink>
           </div>
         </div>
       </div>
