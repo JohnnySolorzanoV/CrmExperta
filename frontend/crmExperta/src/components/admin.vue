@@ -1,80 +1,198 @@
-<script setup>
+  <script setup>
+import { ref, onMounted } from 'vue'
+import { useUsuarioStore } from '../stores/usuariostore'
 
+const usuarioStore = useUsuarioStore()
+const abogados = ref([])
+const loading = ref(false)
+const mensaje = ref('')
+const editingId = ref(null)
+const form = ref({ identificacion: '', nombre: '', correo: '', especialidad: '', numLicencia: '', contrasena: '' })
+
+function authHeaders() {
+  const headers = { 'Content-Type': 'application/json' }
+  if (usuarioStore.token) headers.Authorization = `Bearer ${usuarioStore.token}`
+  return headers
+}
+
+async function fetchAbogados() {
+  if (!usuarioStore.token) {
+    mensaje.value = 'Inicia sesión como administrador para cargar los abogados.'
+    return
+  }
+  loading.value = true
+  mensaje.value = ''
+  try {
+    const res = await fetch('/api/abogados', { headers: authHeaders() })
+    if (!res.ok) throw new Error('No se pudo cargar la lista de abogados')
+    const data = await res.json()
+    abogados.value = data.abogados || []
+  } catch (e) {
+    mensaje.value = e.message
+  } finally {
+    loading.value = false
+  }
+}
+
+function resetForm() {
+  editingId.value = null
+  form.value = { identificacion: '', nombre: '', correo: '', especialidad: '', numLicencia: '', contrasena: '' }
+  mensaje.value = ''
+}
+
+function editAbogado(abogado) {
+  editingId.value = abogado.id
+  form.value = {
+    identificacion: abogado.identificacion || '',
+    nombre: abogado.nombre || '',
+    correo: abogado.correo || '',
+    especialidad: abogado.especialidad || '',
+    numLicencia: abogado.numLicencia || '',
+    contrasena: ''
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function submitForm() {
+  mensaje.value = ''
+  if (!usuarioStore.token) {
+    mensaje.value = 'Debes iniciar sesión como administrador para completar esta acción.'
+    return
+  }
+  const payload = { ...form.value }
+  try {
+    let response
+    if (editingId.value) {
+      response = await fetch(`/api/abogados/${editingId.value}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      })
+      if (!response.ok) throw new Error('Error al actualizar el abogado')
+      mensaje.value = 'Abogado actualizado correctamente.'
+    } else {
+      response = await fetch('/api/abogados', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      })
+      if (!response.ok) throw new Error('Error al crear el abogado')
+      mensaje.value = 'Abogado creado correctamente.'
+    }
+    await fetchAbogados()
+    resetForm()
+  } catch (e) {
+    mensaje.value = e.message
+  }
+}
+
+async function deleteAbogado(id) {
+  if (!confirm('¿Seguro que deseas eliminar este abogado?')) return
+  mensaje.value = ''
+  try {
+    if (!usuarioStore.token) throw new Error('Debes iniciar sesión para eliminar un abogado.')
+    const response = await fetch(`/api/abogados/${id}`, { method: 'DELETE', headers: authHeaders() })
+    if (!response.ok) throw new Error('Error al eliminar el abogado')
+    mensaje.value = 'Abogado eliminado correctamente.'
+    await fetchAbogados()
+  } catch (e) {
+    mensaje.value = e.message
+  }
+}
+
+onMounted(fetchAbogados)
 </script>
 
 <template>
   <div class="container mt-4">
-    <h2 class="mb-4">Gestión de Abogados</h2>
-    <div class="mb-4">
-      <button class="btn btn-success me-2">+ Agregar Abogado</button>
+    <h2 class="mb-4">Administrar Abogados</h2>
+
+    <div class="card mb-4">
+      <div class="card-header bg-light">
+        <strong>{{ editingId ? 'Editar abogado' : 'Crear nuevo abogado' }}</strong>
+      </div>
+      <div class="card-body">
+        <div v-if="mensaje" class="alert alert-info">{{ mensaje }}</div>
+        <form @submit.prevent="submitForm">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Identificación</label>
+              <input v-model="form.identificacion" class="form-control" />
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Nombre</label>
+              <input v-model="form.nombre" class="form-control" />
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Correo</label>
+              <input v-model="form.correo" type="email" class="form-control" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Especialidad</label>
+              <input v-model="form.especialidad" class="form-control" />
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">N° Licencia</label>
+              <input v-model="form.numLicencia" class="form-control" />
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Contraseña</label>
+              <input v-model="form.contrasena" type="password" class="form-control" placeholder="Solo para creación" />
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">{{ editingId ? 'Actualizar' : 'Crear' }}</button>
+            <button class="btn btn-secondary" type="button" @click="resetForm">Limpiar</button>
+          </div>
+        </form>
+      </div>
     </div>
-    <div class="table-responsive">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5>Lista de abogados</h5>
+      <button class="btn btn-sm btn-outline-primary" @click="fetchAbogados">Recargar</button>
+    </div>
+
+    <div v-if="loading" class="text-center py-4">Cargando abogados...</div>
+    <div v-else class="table-responsive">
       <table class="table table-striped table-hover">
         <thead class="table-dark">
-          <th>Especialidad</th>
-          <th>Nombre</th>
-          <th>Correo</th>
-          <th>Nm celular</th>
-          <th>Nm licencia</th>
-        </thead>  
-        <tbody>
           <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
+            <th>ID</th>
+            <th>Identificación</th>
+            <th>Nombre</th>
+            <th>Correo</th>
+            <th>Especialidad</th>
+            <th>N° Licencia</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="a in abogados" :key="a.id">
+            <td>{{ a.id }}</td>
+            <td>{{ a.identificacion }}</td>
+            <td>{{ a.nombre }}</td>
+            <td>{{ a.correo }}</td>
+            <td>{{ a.especialidad }}</td>
+            <td>{{ a.numLicencia }}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-secondary me-1" @click="editAbogado(a)">Editar</button>
+              <button class="btn btn-sm btn-danger" @click="deleteAbogado(a.id)">Eliminar</button>
+            </td>
+          </tr>
+          <tr v-if="abogados.length === 0">
+            <td colspan="7" class="text-center">No hay abogados registrados.</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="card mt-4">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Agregar Nuevo Abogado</h5>
-      </div>
-      <div class="card-body">
-        <form>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="nombre" class="form-label">Nombre Completo</label>
-                <input type="text" class="form-control" id="nombre" placeholder="Nombre del abogado">
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="especialidad" class="form-label">Especialidad</label>
-                <select class="form-control" id="especialidad">
-                  <option>Derecho Civil</option>
-                  <option>Derecho Laboral</option>
-                  <option>Derecho Mercantil</option>
-                  <option>Derecho Penal</option>
-                  <option>Derecho Constitucional</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="licencia" class="form-label">Número de Licencia</label>
-                <input type="text" class="form-control" id="licencia" placeholder="LIC-XXXX-XXX">
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="correo" class="form-label">Correo Electrónico</label>
-                <input type="email" class="form-control" id="correo" placeholder="correo@experta.com">
-              </div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label for="telefono" class="form-label">Teléfono</label>
-            <input type="tel" class="form-control" id="telefono" placeholder="+57 1 1234567">
-          </div>
-          <button type="submit" class="btn btn-primary">Guardar Abogado</button>
-        </form>
-      </div>
-    </div>
   </div>
 </template>
+
+<style scoped>
+.mb-4 { margin-bottom: 1.5rem; }
+</style>

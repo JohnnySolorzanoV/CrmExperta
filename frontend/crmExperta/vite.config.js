@@ -1,18 +1,25 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-
 export default defineConfig({
   plugins: [vue()],
-css: {
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  },
+  css: {
     preprocessorOptions: {
       scss: {
         silenceDeprecations: ["import", 'global-builtin', 'color-functions', 'mixed-decls', 'if-function']
-        }
       }
     }
   }
-);
+})
 
 
 
