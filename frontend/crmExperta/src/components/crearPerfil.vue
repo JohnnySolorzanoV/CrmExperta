@@ -1,9 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useCrearPerfilStore } from '../stores/crearPerfilStore'
+import { useUsuarioStore } from '../stores/usuariostore'
 import { useRouter } from 'vue-router'
 
 const crearPerfilStore = useCrearPerfilStore()
+const usuarioStore = useUsuarioStore()
 const nombre = ref(null)
 const identificacion = ref(null)
 const telefono = ref(null)
@@ -12,9 +14,27 @@ const contrasena = ref(null)
 const direccion = ref(null)
 const router = useRouter()
 async function registrarCliente() {
-  await crearPerfilStore.crearPerfil(identificacion.value, nombre.value, correo.value, contrasena.value)
-    if (crearPerfilStore.usuario)
-      router.push('/loginPerfil')
+  const registroExitoso = await crearPerfilStore.crearPerfil({
+    identificacion: identificacion.value,
+    nombre: nombre.value,
+    correo: correo.value,
+    contrasena: contrasena.value,
+    direccion: direccion.value,
+    telefono: telefono.value
+  })
+
+  if (!registroExitoso) return
+
+  const loginExitoso = await usuarioStore.iniciarSesion(correo.value, contrasena.value)
+  if (!loginExitoso || !usuarioStore.usuario?.roles) return
+
+  if (usuarioStore.usuario.roles.includes('administrador')) {
+    router.push('/admin')
+  } else if (usuarioStore.usuario.roles.includes('abogado')) {
+    router.push('/citas')
+  } else {
+    router.push('/chatbot')
+  }
 }
 
 
@@ -27,6 +47,7 @@ async function registrarCliente() {
       <div class="col-md-8">
         <div class="card p-4">
           <h2 class="mb-4">Registrar Nuevo Cliente</h2>
+          <div v-if="crearPerfilStore.error" class="alert alert-danger">{{ crearPerfilStore.error }}</div>
 
           <form @submit.prevent="registrarCliente">
             <div class="mb-3">
@@ -41,7 +62,7 @@ async function registrarCliente() {
               </div>
               <div class="col-md-6 mb-3">
                 <label for="telefono" class="form-label">Teléfono</label>
-                <input type="tel" class="form-control" id="telefono" placeholder="+57 300 1234567" required v-model="telefono">
+                <input type="tel" class="form-control" id="telefono" placeholder="+593 99 999 9999" required v-model="telefono">
               </div>
             </div>
 
@@ -61,7 +82,9 @@ async function registrarCliente() {
               <input type="text" class="form-control" id="direccion" placeholder="Dirección del cliente" required v-model="direccion">
             </div>
 
-            <button type="submit" class="btn btn-success w-100">Registrar Cliente</button>
+            <button type="submit" class="btn btn-success w-100" :disabled="crearPerfilStore.cargando || usuarioStore.cargando">
+              {{ (crearPerfilStore.cargando || usuarioStore.cargando) ? 'Creando cuenta...' : 'Registrar cuenta' }}
+            </button>
           </form>
         </div>
       </div>

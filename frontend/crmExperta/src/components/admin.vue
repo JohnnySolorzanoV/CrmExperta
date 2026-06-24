@@ -1,43 +1,21 @@
-  <script setup>
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useUsuarioStore } from '../stores/usuariostore'
+import { useAbogadosStore } from '../stores/abogadosStore'
 
 const usuarioStore = useUsuarioStore()
-const abogados = ref([])
-const loading = ref(false)
-const mensaje = ref('')
+const abogadosStore = useAbogadosStore()
 const editingId = ref(null)
 const form = ref({ identificacion: '', nombre: '', correo: '', especialidad: '', numLicencia: '', contrasena: '' })
 
-function authHeaders() {
-  const headers = { 'Content-Type': 'application/json' }
-  if (usuarioStore.token) headers.Authorization = `Bearer ${usuarioStore.token}`
-  return headers
-}
-
 async function fetchAbogados() {
-  if (!usuarioStore.token) {
-    mensaje.value = 'Inicia sesión como administrador para cargar los abogados.'
-    return
-  }
-  loading.value = true
-  mensaje.value = ''
-  try {
-    const res = await fetch('/api/abogados', { headers: authHeaders() })
-    if (!res.ok) throw new Error('No se pudo cargar la lista de abogados')
-    const data = await res.json()
-    abogados.value = data.abogados || []
-  } catch (e) {
-    mensaje.value = e.message
-  } finally {
-    loading.value = false
-  }
+  await abogadosStore.fetchAbogados(usuarioStore.token)
 }
 
 function resetForm() {
   editingId.value = null
   form.value = { identificacion: '', nombre: '', correo: '', especialidad: '', numLicencia: '', contrasena: '' }
-  mensaje.value = ''
+  abogadosStore.limpiarMensaje()
 }
 
 function editAbogado(abogado) {
@@ -54,50 +32,34 @@ function editAbogado(abogado) {
 }
 
 async function submitForm() {
-  mensaje.value = ''
-  if (!usuarioStore.token) {
-    mensaje.value = 'Debes iniciar sesión como administrador para completar esta acción.'
+  abogadosStore.limpiarMensaje()
+  if (!editingId.value && !form.value.contrasena) {
+    abogadosStore.setMensaje('La contraseña es obligatoria para crear un abogado.')
     return
   }
-  const payload = { ...form.value }
-  try {
-    let response
-    if (editingId.value) {
-      response = await fetch(`/api/abogados/${editingId.value}`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify(payload)
-      })
-      if (!response.ok) throw new Error('Error al actualizar el abogado')
-      mensaje.value = 'Abogado actualizado correctamente.'
-    } else {
-      response = await fetch('/api/abogados', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(payload)
-      })
-      if (!response.ok) throw new Error('Error al crear el abogado')
-      mensaje.value = 'Abogado creado correctamente.'
+
+  const payload = editingId.value
+    ? {
+      nombre: form.value.nombre,
+      correo: form.value.correo,
+      especialidad: form.value.especialidad,
+      numLicencia: form.value.numLicencia
     }
-    await fetchAbogados()
-    resetForm()
-  } catch (e) {
-    mensaje.value = e.message
+    : { ...form.value }
+
+  let ok = false
+  if (editingId.value) {
+    ok = await abogadosStore.actualizarAbogado(usuarioStore.token, editingId.value, payload)
+  } else {
+    ok = await abogadosStore.crearAbogado(usuarioStore.token, payload)
   }
+
+  if (ok) resetForm()
 }
 
 async function deleteAbogado(id) {
   if (!confirm('¿Seguro que deseas eliminar este abogado?')) return
-  mensaje.value = ''
-  try {
-    if (!usuarioStore.token) throw new Error('Debes iniciar sesión para eliminar un abogado.')
-    const response = await fetch(`/api/abogados/${id}`, { method: 'DELETE', headers: authHeaders() })
-    if (!response.ok) throw new Error('Error al eliminar el abogado')
-    mensaje.value = 'Abogado eliminado correctamente.'
-    await fetchAbogados()
-  } catch (e) {
-    mensaje.value = e.message
-  }
+  await abogadosStore.eliminarAbogado(usuarioStore.token, id)
 }
 
 onMounted(fetchAbogados)
@@ -112,7 +74,7 @@ onMounted(fetchAbogados)
         <strong>{{ editingId ? 'Editar abogado' : 'Crear nuevo abogado' }}</strong>
       </div>
       <div class="card-body">
-        <div v-if="mensaje" class="alert alert-info">{{ mensaje }}</div>
+        <div v-if="abogadosStore.mensaje" class="alert alert-info">{{ abogadosStore.mensaje }}</div>
         <form @submit.prevent="submitForm">
           <div class="row">
             <div class="col-md-4 mb-3">
@@ -138,15 +100,17 @@ onMounted(fetchAbogados)
               <label class="form-label">N° Licencia</label>
               <input v-model="form.numLicencia" class="form-control" />
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="col-md-4 mb-3" v-if="!editingId">
               <label class="form-label">Contraseña</label>
               <input v-model="form.contrasena" type="password" class="form-control" placeholder="Solo para creación" />
             </div>
           </div>
 
           <div class="d-flex gap-2">
-            <button class="btn btn-primary" type="submit">{{ editingId ? 'Actualizar' : 'Crear' }}</button>
-            <button class="btn btn-secondary" type="button" @click="resetForm">Limpiar</button>
+            <button class="btn btn-primary" type="submit" :disabled="abogadosStore.saving">
+              {{ abogadosStore.saving ? 'Guardando...' : (editingId ? 'Actualizar' : 'Crear') }}
+            </button>
+            <button class="btn btn-secondary" type="button" @click="resetForm" :disabled="abogadosStore.saving">Limpiar</button>
           </div>
         </form>
       </div>
@@ -157,7 +121,7 @@ onMounted(fetchAbogados)
       <button class="btn btn-sm btn-outline-primary" @click="fetchAbogados">Recargar</button>
     </div>
 
-    <div v-if="loading" class="text-center py-4">Cargando abogados...</div>
+    <div v-if="abogadosStore.loading" class="text-center py-4">Cargando abogados...</div>
     <div v-else class="table-responsive">
       <table class="table table-striped table-hover">
         <thead class="table-dark">
@@ -172,7 +136,7 @@ onMounted(fetchAbogados)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="a in abogados" :key="a.id">
+          <tr v-for="a in abogadosStore.abogados" :key="a.id">
             <td>{{ a.id }}</td>
             <td>{{ a.identificacion }}</td>
             <td>{{ a.nombre }}</td>
@@ -184,7 +148,7 @@ onMounted(fetchAbogados)
               <button class="btn btn-sm btn-danger" @click="deleteAbogado(a.id)">Eliminar</button>
             </td>
           </tr>
-          <tr v-if="abogados.length === 0">
+          <tr v-if="abogadosStore.abogados.length === 0">
             <td colspan="7" class="text-center">No hay abogados registrados.</td>
           </tr>
         </tbody>

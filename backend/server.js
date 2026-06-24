@@ -4,6 +4,7 @@ import { config as envConfig } from 'dotenv'
 import { probarConexion } from './config/database.js'
 import { manejoDeErrores } from './config/manejoDeErrores.js'
 import authRutas from './modulos/auth/auth.rutas.js'
+import clienteRutas from './modulos/clientes/cliente.rutas.js'
 import usuarioRutas from './modulos/usuarios/usuario.rutas.js'
 import abogadoRutas from './modulos/abogados/abogado.rutas.js'
 import calendarioRutas from './modulos/calendario/calendario.rutas.js'
@@ -22,6 +23,7 @@ APP.use(express.json())
 
 var MODULOS_ACTIVOS = [
   { ruta: '/api/auth', handler: authRutas },
+  { ruta: '/api/clientes', handler: clienteRutas },
   { ruta: '/api/usuarios', handler: usuarioRutas },
   { ruta: '/api/abogados', handler: abogadoRutas },
   { ruta: '/api/calendario', handler: calendarioRutas },

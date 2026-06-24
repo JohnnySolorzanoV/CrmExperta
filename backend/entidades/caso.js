@@ -7,5 +7,7 @@ export class Caso {
     this.nombreCaso = x.nombreCaso
     this.idCliente = x.idCliente
     this.idAbogado = x.idAbogado
+    this.clienteNombre = x.clienteNombre || ''
+    this.abogadoNombre = x.abogadoNombre || ''
   }
 }

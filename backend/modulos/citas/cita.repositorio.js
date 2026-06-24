@@ -19,12 +19,48 @@ export async function buscarPorId(id) {
 }
 
 export async function buscarPorCliente(idC) {
-  var r = await query(`${SQL_CT} FROM Cita WHERE id_cliente = $1 ORDER BY fecha_hora_copia`, [idC])
+  var r = await query(
+    `SELECT
+      c.id,
+      c.id_cliente as "idCliente",
+      c.id_abogado as "idAbogado",
+      c.fecha_hora_copia as "fechaHoraCopia",
+      c.id_calendario as "idCalendario",
+      c.motivo,
+      c.estado_cita as "estadoCita",
+      c.resumen_chatbot as "resumenChatbot",
+      c.created_at as "createdAt",
+      usr.nombre as "abogadoNombre"
+     FROM Cita c
+     JOIN Abogado a ON a.id = c.id_abogado
+     JOIN Usuario usr ON usr.id = a.id_usuario
+     WHERE c.id_cliente = $1
+     ORDER BY c.fecha_hora_copia`,
+    [idC]
+  )
   return r.rows.map(row => new Cita(row))
 }
 
 export async function buscarPorAbogado(idA) {
-  var r = await query(`${SQL_CT} FROM Cita WHERE id_abogado = $1 ORDER BY fecha_hora_copia`, [idA])
+  var r = await query(
+    `SELECT
+      c.id,
+      c.id_cliente as "idCliente",
+      c.id_abogado as "idAbogado",
+      c.fecha_hora_copia as "fechaHoraCopia",
+      c.id_calendario as "idCalendario",
+      c.motivo,
+      c.estado_cita as "estadoCita",
+      c.resumen_chatbot as "resumenChatbot",
+      c.created_at as "createdAt",
+      uc.nombre as "clienteNombre"
+     FROM Cita c
+     JOIN Cliente cl ON cl.id = c.id_cliente
+     JOIN Usuario uc ON uc.id = cl.id_usuario
+     WHERE c.id_abogado = $1
+     ORDER BY c.fecha_hora_copia`,
+    [idA]
+  )
   return r.rows.map(row => new Cita(row))
 }
 

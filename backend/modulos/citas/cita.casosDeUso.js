@@ -25,8 +25,12 @@ export var listarCitasAbogado = async (idUsuario) => {
 }
 
 export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCalendario, motivo, resumenChatbot }) {
-  if (!idCliente || !idAbogado || !fechaHoraCopia) {
+  if (!idCliente || !fechaHoraCopia) {
     throw Object.assign(new Error('Faltan datos requeridos para la cita'), { status: 400 })
+  }
+
+  if (!idAbogado) {
+    throw Object.assign(new Error('Debes asignar un abogado para crear la cita'), { status: 400 })
   }
 
   // convertir Usuario.id a Cliente.id / Abogado.id
@@ -68,6 +72,12 @@ export var cancelarCita = async (id) => {
 
 export var completarCita = async (id) => {
   var c = await ctaRepo.actualizarEstado(id, 'completada')
+  if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+  return c
+}
+
+export var aceptarCita = async (id) => {
+  var c = await ctaRepo.actualizarEstado(id, 'confirmada')
   if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
   return c
 }

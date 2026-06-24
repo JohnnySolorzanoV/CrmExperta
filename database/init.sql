@@ -66,7 +66,8 @@ CREATE TABLE Cita (
     motivo TEXT,
     estado_cita VARCHAR(20) DEFAULT 'pendiente',
     resumen_chatbot TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT cita_abogado_requerido CHECK (id_abogado IS NOT NULL)
 );
 
 CREATE TABLE Documento (

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
 import {
   listarCitas, obtenerCita, listarCitasCliente, listarCitasAbogado,
-  agendarCita, cancelarCita, completarCita, reprogramarCita, eliminarCita
+  agendarCita, cancelarCita, aceptarCita, completarCita, reprogramarCita, eliminarCita
 } from './cita.casosDeUso.js'
 
 var router = Router()
@@ -11,13 +11,6 @@ router.get('/', verificarToken, verificarRol('administrador'), async (req, res, 
   try {
     var CITAS = await listarCitas()
     res.json({ citas: CITAS })
-  } catch (error) { next(error) }
-})
-
-router.get('/:id', verificarToken, async (req, res, next) => {
-  try {
-    var c = await obtenerCita(Number(req.params.id))
-    res.json({ cita: c })
   } catch (error) { next(error) }
 })
 
@@ -35,8 +28,18 @@ router.get('/abogado/:idAbogado', verificarToken, async (req, res, next) => {
   } catch (error) { next(error) }
 })
 
+router.get('/:id', verificarToken, async (req, res, next) => {
+  try {
+    var c = await obtenerCita(Number(req.params.id))
+    res.json({ cita: c })
+  } catch (error) { next(error) }
+})
+
 router.post('/', verificarToken, verificarRol('cliente', 'administrador'), async (req, res, next) => {
   try {
+    if (!req.body?.idAbogado) {
+      throw Object.assign(new Error('Debes asignar un abogado antes de crear la cita'), { status: 400 })
+    }
     var c = await agendarCita(req.body)
     res.status(201).json({ mensaje: 'Cita agendada', cita: c })
   } catch (error) { next(error) }
@@ -46,6 +49,13 @@ router.put('/:id/cancelar', verificarToken, async (req, res, next) => {
   try {
     var c = await cancelarCita(Number(req.params.id))
     res.json({ mensaje: 'Cita cancelada', cita: c })
+  } catch (error) { next(error) }
+})
+
+router.put('/:id/aceptar', verificarToken, verificarRol('abogado', 'administrador'), async (req, res, next) => {
+  try {
+    var c = await aceptarCita(Number(req.params.id))
+    res.json({ mensaje: 'Cita aceptada', cita: c })
   } catch (error) { next(error) }
 })
 

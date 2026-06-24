@@ -9,15 +9,15 @@ const email = ref(null)
 const password = ref(null)
 const router = useRouter()
 async function iniciarSesion() {
-  await usuarioStore.iniciarSesion(email.value, password.value)
-  if (usuarioStore.usuario.roles) {
-    if (usuarioStore.usuario.roles.includes('administrador')) {
+  const loginExitoso = await usuarioStore.iniciarSesion(email.value, password.value)
+  if (!loginExitoso || !usuarioStore.usuario?.roles) return
+
+  if (usuarioStore.usuario.roles.includes('administrador')) {
       router.push('/admin')
-    } else if (usuarioStore.usuario.roles.includes('cliente')) {
+  } else if (usuarioStore.usuario.roles.includes('cliente')) {
       router.push('/chatbot')
-    } else if (usuarioStore.usuario.roles.includes('abogado')) {
+  } else if (usuarioStore.usuario.roles.includes('abogado')) {
       router.push('/inicioAbogado')
-    }
   }
 }
 
@@ -38,13 +38,16 @@ async function iniciarSesion() {
               <label for="password" class="form-label">Contraseña</label>
               <input type="password" class="form-control" id="password" placeholder="Contraseña" required v-model="password">
             </div>
-            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+            <div v-if="usuarioStore.error" class="alert alert-danger py-2" role="alert">
+              {{ usuarioStore.error }}
+            </div>
+            <button type="submit" class="btn btn-primary w-100" :disabled="usuarioStore.cargando">
+              {{ usuarioStore.cargando ? 'Ingresando...' : 'Ingresar' }}
+            </button>
+            <RouterLink to="/crearPerfil" class="btn btn-outline-primary w-100 mt-2">Registrate como cliente</RouterLink>
           </form>
           <div class="mt-3">
             <RouterLink to="/recuperarContrasena" class="text-decoration-none">¿Olvidaste tu contraseña?</RouterLink>
-          </div>
-          <div class="mt-2">
-            <RouterLink to="/inicio" class="btn btn-secondary w-100">Volver</RouterLink>
           </div>
         </div>
       </div>

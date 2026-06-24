@@ -1,19 +1,151 @@
 <script setup>
 
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useChatbotStore } from '../stores/chatbotStore'
 import { useRouter } from 'vue-router'
 
 const chatbotStore = useChatbotStore()
-const mensaje = ref()
+const router = useRouter()
+const mensaje = ref('')
+const abogadoSeleccionado = ref('')
+const slotSeleccionadoKey = ref('')
+const pasoAgendar = ref(1)
+const enviandoReserva = ref(false)
+const cargandoDisponibilidad = ref(false)
+const errorReserva = ref('')
+
+function extraerAgendarDesdeTexto(texto) {
+  if (!texto || typeof texto !== 'string') return null
+
+  const candidatos = [texto]
+  const matchBloqueJson = texto.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (matchBloqueJson?.[1]) candidatos.push(matchBloqueJson[1])
+
+  for (const contenido of candidatos) {
+    try {
+      const parsed = JSON.parse(contenido.trim())
+      if (parsed?.accion === 'agendar' && parsed?.resumen) return parsed
+    } catch {
+      // Continuar con el siguiente candidato.
+    }
+  }
+
+  return null
+}
+
+function textoBotVisible(mensajeBot) {
+  const respuesta = mensajeBot?.content?.respuesta
+  const esAgendar = extraerAgendarDesdeTexto(respuesta)
+  if (esAgendar) return 'Perfecto, estoy agendando tu cita con esta información.'
+  return respuesta
+}
 
 async function enviarMensaje() {
+  if (chatbotStore.pendienteAgendar) return
   const mensajeUsuario = mensaje.value
-    mensaje.value = ''
-    
+  if (!mensajeUsuario?.trim()) return
+  mensaje.value = ''
+
   await chatbotStore.enviarMensaje(mensajeUsuario)
-  
 }
+
+async function enviarAgendarRapido() {
+  if (chatbotStore.pendienteAgendar) return
+  mensaje.value = ''
+  await chatbotStore.enviarMensaje('agendar cita')
+}
+
+async function confirmarReserva() {
+  errorReserva.value = ''
+  if (!abogadoSeleccionado.value) {
+    errorReserva.value = 'Selecciona un abogado asignado para la cita.'
+    return
+  }
+  if (!slotSeleccionadoKey.value) {
+    errorReserva.value = 'Selecciona uno de los horarios disponibles.'
+    return
+  }
+  const slot = chatbotStore.disponibilidadAbogado.find(
+    (s) => String(s.id || s.fechaEvento) === String(slotSeleccionadoKey.value)
+  )
+  if (!slot) {
+    errorReserva.value = 'El horario seleccionado ya no está disponible. Vuelve a cargar disponibilidad.'
+    return
+  }
+
+  try {
+    enviandoReserva.value = true
+    await chatbotStore.confirmarAgendamiento(
+      slot.fechaEvento,
+      abogadoSeleccionado.value,
+      slot.id || null
+    )
+    abogadoSeleccionado.value = ''
+    slotSeleccionadoKey.value = ''
+  } catch (error) {
+    errorReserva.value = error.message || 'No se pudo confirmar la cita.'
+  } finally {
+    enviandoReserva.value = false
+  }
+}
+
+function verMisReservas() {
+  router.push('/mis-reservas')
+}
+
+function cancelarAgendamiento() {
+  chatbotStore.limpiarPendienteAgendar()
+  abogadoSeleccionado.value = ''
+  slotSeleccionadoKey.value = ''
+  errorReserva.value = ''
+  pasoAgendar.value = 1
+}
+
+function volverPasoUno() {
+  pasoAgendar.value = 1
+  slotSeleccionadoKey.value = ''
+  errorReserva.value = ''
+}
+
+async function cargarDisponibilidad() {
+  errorReserva.value = ''
+  slotSeleccionadoKey.value = ''
+  if (!abogadoSeleccionado.value) {
+    errorReserva.value = 'Primero selecciona un abogado.'
+    return
+  }
+  try {
+    cargandoDisponibilidad.value = true
+    await chatbotStore.cargarDisponibilidadAbogado(abogadoSeleccionado.value)
+    if (chatbotStore.disponibilidadAbogado.length === 0) {
+      errorReserva.value = 'Este abogado no tiene horarios disponibles en sus proximos 10 slots.'
+    }
+    pasoAgendar.value = 2
+  } catch (e) {
+    errorReserva.value = e.message || 'No se pudo cargar la disponibilidad.'
+  } finally {
+    cargandoDisponibilidad.value = false
+  }
+}
+
+onMounted(async () => {
+  try {
+    await chatbotStore.cargarAbogadosDisponibles()
+  } catch (e) {
+    // No bloquear el chat por error en catalogo.
+  }
+})
+
+watch(
+  () => chatbotStore.pendienteAgendar,
+  (pendiente) => {
+    if (pendiente) {
+      pasoAgendar.value = 1
+      slotSeleccionadoKey.value = ''
+      errorReserva.value = ''
+    }
+  }
+)
 
 </script>
 
@@ -34,7 +166,7 @@ async function enviarMensaje() {
               <div class="mb-3" v-if="mensaje.role === 'bot'">
                 <div class=" d-flex">
                   <div class="bg-primary text-white rounded px-3 py-2" style="max-width: 80%;">
-                    <p class="mb-0 mensajeChat"><strong>Bot:</strong> {{ mensaje.content.respuesta }}</p>
+                    <p class="mb-0 mensajeChat"><strong>Bot:</strong> {{ textoBotVisible(mensaje) }}</p>
                   </div>
                 </div>
               </div>
@@ -52,9 +184,71 @@ async function enviarMensaje() {
 
           <!-- Input Area -->
           <div class="card-footer">
-            <form class="d-flex gap-2" @submit.prevent="enviarMensaje">
+            <div v-if="chatbotStore.pendienteAgendar" class="border rounded p-3 mb-3 bg-white">
+              <h6 class="mb-3">Confirmar agendamiento</h6>
+              <div v-if="pasoAgendar === 1" class="row g-2">
+                <div class="col-12">
+                  <label class="form-label">Selecciona un abogado</label>
+                  <select v-model="abogadoSeleccionado" class="form-select">
+                    <option disabled value="">-- Selecciona un abogado --</option>
+                    <option v-for="abogado in chatbotStore.abogadosDisponibles" :key="abogado.id" :value="abogado.id">
+                      {{ abogado.nombre }} - {{ abogado.especialidad }}
+                    </option>
+                  </select>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                  <button type="button" class="btn btn-primary" @click="cargarDisponibilidad"
+                    :disabled="cargandoDisponibilidad || !abogadoSeleccionado">
+                    {{ cargandoDisponibilidad ? 'Cargando disponibilidad...' : 'Continuar' }}
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" @click="cancelarAgendamiento"
+                    :disabled="cargandoDisponibilidad">Cancelar</button>
+                </div>
+              </div>
+
+              <div v-else class="row g-2">
+                <div class="col-12">
+                  <label class="form-label">Selecciona un horario disponible</label>
+                </div>
+                <div class="col-12" v-if="chatbotStore.disponibilidadAbogado.length > 0">
+                  <div class="d-flex flex-column gap-2">
+                    <label class="form-check" v-for="slot in chatbotStore.disponibilidadAbogado"
+                      :key="slot.id || slot.fechaEvento">
+                      <input class="form-check-input" type="radio" name="slotDisponibilidad"
+                        :value="String(slot.id || slot.fechaEvento)" v-model="slotSeleccionadoKey">
+                      <span class="form-check-label ms-2">
+                        {{ new Date(slot.fechaEvento).toLocaleString() }}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-12" v-else>
+                  <p class="text-muted mb-0">No hay horarios disponibles para este abogado en este momento.</p>
+                </div>
+              </div>
+              <div v-if="errorReserva" class="alert alert-danger py-2 mt-2 mb-0">{{ errorReserva }}</div>
+
+              <div v-if="pasoAgendar === 2" class="d-flex gap-2 mt-3">
+                <button class="btn btn-primary" type="button" @click="confirmarReserva" :disabled="enviandoReserva">
+                  {{ enviandoReserva ? 'Confirmando...' : 'Confirmar cita' }}
+                </button>
+                <button class="btn btn-outline-secondary" type="button" @click="volverPasoUno"
+                  :disabled="enviandoReserva">Volver</button>
+                <button class="btn btn-outline-secondary" type="button" @click="cancelarAgendamiento"
+                  :disabled="enviandoReserva">Cancelar</button>
+              </div>
+            </div>
+
+            <div v-if="chatbotStore.ultimaCita">
+              <button type="button" class="btn btn-primary w-100" @click="verMisReservas">
+                Ver todas mis reservas
+              </button>
+            </div>
+
+            <form v-if="!chatbotStore.pendienteAgendar && !chatbotStore.ultimaCita" class="d-flex gap-2" @submit.prevent="enviarMensaje">
               <input type="text" class="form-control" placeholder="Escribe tu pregunta aquí..." v-model="mensaje">
               <button type="submit" class="btn btn-primary">Enviar</button>
+              <button type="button" class="btn btn-secondary" @click="enviarAgendarRapido">Agendar</button>
             </form>
           </div>
         </div>

@@ -1,13 +1,39 @@
 import pg from 'pg'
 import bcrypt from 'bcrypt'
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
 var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5433/crm_experta'
+var __dirname = dirname(fileURLToPath(import.meta.url))
 
 var CORREO_ADMIN = 'admin@crm.com'
 var PASS_ADMIN = 'admin123'
 
+async function verificarTablas(POOL) {
+  var resultado = await POOL.query(
+    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'usuario')"
+  )
+  return resultado.rows[0].exists
+}
+
+async function ejecutarInitSql(POOL) {
+  var ruta = resolve(__dirname, '../database/init.sql')
+  var sql = readFileSync(ruta, 'utf8')
+  var sentencias = sql.split(';').map(s => s.trim()).filter(s => s.length > 0)
+  for (var s of sentencias) {
+    await POOL.query(s)
+  }
+  console.log('esquema de BD creado desde init.sql')
+}
+
 async function seed() {
   var POOL = new pg.Pool({ connectionString: DB_URL })
+  var tablasExisten = await verificarTablas(POOL)
+  if (!tablasExisten) {
+    console.log('tablas no encontradas, ejecutando init.sql...')
+    await ejecutarInitSql(POOL)
+  }
 
   var ya_existe = await POOL.query(
     `SELECT u.id FROM Usuario u

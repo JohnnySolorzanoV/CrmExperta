@@ -3,6 +3,8 @@ export class Cita {
     this.id = x.id
     this.idCliente = x.idCliente
     this.idAbogado = x.idAbogado
+    this.abogadoNombre = x.abogadoNombre || ''
+    this.clienteNombre = x.clienteNombre || ''
     this.fechaHoraCopia = x.fechaHoraCopia
     this.idCalendario = x.idCalendario
     this.motivo = x.motivo || ''

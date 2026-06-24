@@ -1,24 +1,11 @@
 import { Router as Rt } from 'express'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
 import {
-  crearUsuario, listarUsuarios, obtenerUsuario, actualizarUsuario, eliminarUsuario,
+  listarUsuarios, obtenerUsuario, actualizarUsuario, eliminarUsuario,
   agregarRol, removerRol
 } from './usuario.casosDeUso.js'
 
 var router = Rt()
-
-//router.use(verificarToken, verificarRol('administrador'))
-
-router.post('/', async (req, res, next) => {
-  try {
-    var { identificacion, nombre, correo, contrasena } = req.body
-    if (!identificacion || !nombre || !correo || !contrasena) {
-      return res.status(400).json({ error: 'Faltan campos requeridos' })
-    }
-    var u = await crearUsuario({ identificacion, nombre, correo, contrasena })
-    res.status(201).json({ mensaje: 'Usuario creado', usuario: u })
-  } catch (error) { next(error) }
-})
 
 router.get('/', async (req, res, next) => {
   try {

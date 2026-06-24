@@ -37,7 +37,7 @@
     <div class="botonesInicio container text-center bg-light-subtle my-5  ">
       <div class="row">
         <RouterLink type="button" class="btn btn-primary mt-3" to="/loginPerfil"> Iniciar sesión </RouterLink>
-        <RouterLink type="button" class="btn btn-secondary mt-3" to="/crearPerfil"> Registrarse </RouterLink>
+        <RouterLink type="button" class="btn btn-secondary mt-3" to="/crearPerfil"> Registrate comocliente </RouterLink>
       </div>
     </div>
   </div>

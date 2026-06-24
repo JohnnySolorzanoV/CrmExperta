@@ -1,22 +1,7 @@
 import { Router as routerExpress } from 'express'
-import { registrarse, iniciarSesion, recuperarContrasena } from './auth.casosDeUso.js'
+import { iniciarSesion, recuperarContrasena } from './auth.casosDeUso.js'
 
 var router = routerExpress()
-
-router.post('/registro', async (req, res, next) => {
-  try {
-    var { identificacion, nombre, correo, contrasena } = req.body
-    if (!identificacion || !nombre || !correo || !contrasena) {
-      var codigodeErr = 400
-      return res.status(codigodeErr).json({ error: 'Faltan campos requeridos' })
-    }
-
-    var user_created = await registrarse({ identificacion, nombre, correo, contrasena })
-    var { contrasena: _, ...user_safe } = user_created
-
-    res.status(201).json({ mensaje: 'Cuenta creada', usuario: user_safe })
-  } catch (error) { next(error) }
-})
 
 router.post('/login', async (req, res, next) => {
   try {

@@ -2,7 +2,6 @@ import * as botRepo from './chatbot.repositorio.js'
 import { Chatbot as Bot } from '../../entidades/chatbot.js'
 import { ejecutarConsulta } from '../../config/database.js'
 import { preguntarAI } from '../../config/poe.js'
-import { agendarCita } from '../citas/cita.casosDeUso.js'
 
 var SISTEMA_BASE = `
 Eres un asistente legal especializado que trabaja para un bufete de abogados.
@@ -96,6 +95,25 @@ function construirMensajes(historial, contextoCRM, mensajeNuevo) {
   return mensajes
 }
 
+function extraerAgendarDesdeRespuesta(respuestaAI) {
+  if (!respuestaAI) return null
+
+  var candidatos = [respuestaAI]
+  var bloqueJson = respuestaAI.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (bloqueJson?.[1]) candidatos.push(bloqueJson[1])
+
+  for (var contenido of candidatos) {
+    try {
+      var parsed = JSON.parse(contenido.trim())
+      if (parsed?.accion === 'agendar' && parsed?.resumen) return parsed
+    } catch (e) {
+      // seguir con el siguiente candidato
+    }
+  }
+
+  return null
+}
+
 export async function consultar({ idUsuario, mensaje }) {
   if (!mensaje) throw Object.assign(new Error('Mensaje requerido'), { status: 400 })
 
@@ -132,15 +150,7 @@ export async function consultar({ idUsuario, mensaje }) {
   await botRepo.actualizarLog(consultaGuardada.id, logCompleto)
 
   // 7. detectar si la AI quiere agendar una cita (JSON de accion)
-  var resultadoAgendar = null
-  try {
-    var parsed = JSON.parse(respuestaAI)
-    if (parsed.accion === 'agendar' && parsed.resumen) {
-      resultadoAgendar = parsed
-    }
-  } catch (e) {
-    // no es JSON, es texto normal
-  }
+  var resultadoAgendar = extraerAgendarDesdeRespuesta(respuestaAI)
 
   return {
     respuesta: respuestaAI,

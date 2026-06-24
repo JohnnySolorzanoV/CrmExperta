@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
-import { listarSlots, crearSlot, eliminarSlot } from './calendario.casosDeUso.js'
+import { listarSlots, listarDisponibilidadAbogado, crearSlot, eliminarSlot } from './calendario.casosDeUso.js'
 
 var router = Router()
 
@@ -8,6 +8,13 @@ router.get('/abogado/:idAbogado', verificarToken, async (req, res, next) => {
   try {
     var SLOTS = await listarSlots(Number(req.params.idAbogado))
     res.json({ slots: SLOTS })
+  } catch (error) { next(error) }
+})
+
+router.get('/abogado/:idAbogado/disponibilidad', verificarToken, async (req, res, next) => {
+  try {
+    var DISPONIBLES = await listarDisponibilidadAbogado(Number(req.params.idAbogado))
+    res.json({ disponibilidad: DISPONIBLES })
   } catch (error) { next(error) }
 })
 

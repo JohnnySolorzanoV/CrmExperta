@@ -1,9 +1,10 @@
 import * as DB from '../../config/database.js'
 import { Documento as Doc } from '../../entidades/documento.js'
 
-var SQL_DOC = `SELECT id, id_caso as "idCaso", nombre_documento as "nombreDocumento",
-                      descripcion, extension, fecha_subida as "fechaSubida",
-                      ruta_archivo as "rutaArchivo", tamaño`
+var CAMPOS_DOC = `id, id_caso as "idCaso", nombre_documento as "nombreDocumento",
+                  descripcion, extension, fecha_subida as "fechaSubida",
+                  ruta_archivo as "rutaArchivo", tamaño`
+var SQL_DOC = `SELECT ${CAMPOS_DOC}`
 
 export async function obtenerPorCaso(idCaso) {
   var r = await DB.ejecutarConsulta(`${SQL_DOC} FROM Documento WHERE id_caso = $1 ORDER BY fecha_subida DESC`, [idCaso])
@@ -19,7 +20,7 @@ export async function buscarPorId(id) {
 export async function crear(doc) {
   var r = await DB.ejecutarConsulta(
     `INSERT INTO Documento (id_caso, nombre_documento, descripcion, extension, ruta_archivo, tamaño)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${SQL_DOC}`,
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${CAMPOS_DOC}`,
     [doc.idCaso, doc.nombreDocumento, doc.descripcion, doc.extension, doc.rutaArchivo, doc.tamaño]
   )
   return new Doc(r.rows[0])
@@ -27,7 +28,7 @@ export async function crear(doc) {
 
 export async function actualizar(id, datos) {
   var r = await DB.ejecutarConsulta(
-    `UPDATE Documento SET descripcion = $1 WHERE id = $2 RETURNING ${SQL_DOC}`,
+    `UPDATE Documento SET descripcion = $1 WHERE id = $2 RETURNING ${CAMPOS_DOC}`,
     [datos.descripcion, id]
   )
   if (r.rows.length === 0) return null
