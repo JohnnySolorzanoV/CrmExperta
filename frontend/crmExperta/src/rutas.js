@@ -14,6 +14,7 @@ import inicioAbogado from './components/inicioAbogado.vue'
 import misReservas from './components/misReservas.vue'
 import sobreNosotros from './components/sobreNosotros.vue'
 import casoDetalle from './components/casoDetalle.vue'
+import casoDetalleCliente from './components/casoDetalleCliente.vue'
 const rutas = [
     {
         path: '/',
@@ -84,6 +85,11 @@ const rutas = [
     {
         path: '/mis-reservas',
         component: misReservas,
+        meta: { rol: 'cliente' }
+    },
+    {
+        path: '/mis-casos/:id',
+        component: casoDetalleCliente,
         meta: { rol: 'cliente' }
     },
     {

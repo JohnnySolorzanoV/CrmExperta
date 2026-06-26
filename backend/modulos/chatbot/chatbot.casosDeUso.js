@@ -13,11 +13,17 @@ REGLAS IMPORTANTES:
 2. Si te preguntan algo que no sabes, indica que un abogado lo resolvera en la cita.
 3. NO des asesoria legal definitiva ni garantices resultados.
 4. Siempre recuerda que eres un asistente preliminar, no un abogado real.
-5. Al final de la conversacion, cuando el usuario indique que ya termino o quiera agendar,
-   responde UNICAMENTE con un JSON con este formato exacto:
+5. Si detectas intencion de agendar (por ejemplo: "agendar", "agenda", "reservar", "quiero una cita",
+   "programar cita", "listo, agendemos", "ya termine"), responde INMEDIATAMENTE UNICAMENTE con
+   un JSON con este formato exacto:
    {"accion":"agendar","resumen":"...resumen de la consulta...","tipoConsulta":"...tipo...","motivo":"...motivo..."}
-6. Solo usa el JSON cuando el usuario pida agendar o termine la consulta.
-   En conversacion normal responde con texto natural.
+6. No hagas preguntas adicionales cuando ya exista intencion clara de agendar.
+   Si faltan detalles, completa con la mejor inferencia posible usando el contexto conversacional.
+7. El "resumen" debe ser util para el abogado (2-4 frases). "tipoConsulta" debe ser breve
+   (ej: "Derecho familiar", "Derecho civil", "Transito", "Sucesorio", "Constitucional",
+   o "Consulta legal general"). "motivo" debe ser una frase concreta del problema principal.
+8. Cuando respondes con JSON, NO agregues texto antes ni despues, NO uses markdown, NO uses bloques \`\`\`.
+9. En conversacion normal (sin intencion de agenda), responde con texto natural.
 
 PREGUNTAS FRECUENTES:
 - ¿Cuanto dura una consulta inicial? Aproximadamente 30-45 minutos.
@@ -102,12 +108,26 @@ function extraerAgendarDesdeRespuesta(respuestaAI) {
   var bloqueJson = respuestaAI.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
   if (bloqueJson?.[1]) candidatos.push(bloqueJson[1])
 
+  // Intentar parseo directo del candidato completo.
   for (var contenido of candidatos) {
     try {
       var parsed = JSON.parse(contenido.trim())
       if (parsed?.accion === 'agendar' && parsed?.resumen) return parsed
     } catch (e) {
       // seguir con el siguiente candidato
+    }
+  }
+
+  // Fallback robusto: extraer objetos JSON incrustados en texto.
+  for (var contenido of candidatos) {
+    var matches = contenido.match(/\{[\s\S]*?\}/g) || []
+    for (var fragmento of matches) {
+      try {
+        var parsedFragmento = JSON.parse(fragmento.trim())
+        if (parsedFragmento?.accion === 'agendar' && parsedFragmento?.resumen) return parsedFragmento
+      } catch (e) {
+        // ignorar fragmento invalido
+      }
     }
   }
 

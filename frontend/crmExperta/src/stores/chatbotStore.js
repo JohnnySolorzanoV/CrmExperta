@@ -11,8 +11,34 @@ export const useChatbotStore = defineStore('chatbot', () => {
     const pendienteAgendar = ref(null);
     const ultimaCita = ref(null);
     const usuarioStore = useUsuarioStore();
+    const MENSAJE_RELOGIN = 'Tu sesion expiro o es invalida. Inicia sesion nuevamente.';
+
+    async function parseResponseSafe(response) {
+        try {
+            return await response.json();
+        } catch {
+            return null;
+        }
+    }
+
+    function asegurarSesionActiva() {
+        if (!usuarioStore.token || !usuarioStore.usuario?.id) {
+            throw new Error(MENSAJE_RELOGIN);
+        }
+    }
+
+    function manejarErrorAutenticacion(data) {
+        const mensaje = data?.error || data?.mensaje || '';
+        const esErrorToken = typeof mensaje === 'string' && mensaje.toLowerCase().includes('token');
+        if (esErrorToken) {
+            usuarioStore.cerrarSesion();
+            throw new Error(MENSAJE_RELOGIN);
+        }
+        throw new Error(mensaje || 'No autorizado para realizar esta accion.');
+    }
 
     async function agendarDesdeChat(datosAgendar, fechaHoraCopia, idAbogado, idCalendario) {
+        asegurarSesionActiva();
         const response = await fetch("http://localhost:3000/api/chatbot/agendar", {
             method: "POST",
             body: JSON.stringify({
@@ -27,8 +53,9 @@ export const useChatbotStore = defineStore('chatbot', () => {
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${usuarioStore.token}` }
         });
 
-        const data = await response.json();
+        const data = await parseResponseSafe(response);
         if (!response.ok) {
+            if (response.status === 401) manejarErrorAutenticacion(data);
             throw new Error(data?.error || data?.mensaje || 'No se pudo agendar la cita desde el chatbot.');
         }
         return data;
@@ -46,6 +73,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
         const matchBloqueJson = respuestaTexto.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
         if (matchBloqueJson?.[1]) candidatos.push(matchBloqueJson[1]);
 
+        // Parseo directo del contenido completo.
         for (const contenido of candidatos) {
             try {
                 const parsed = JSON.parse(contenido.trim());
@@ -55,18 +83,30 @@ export const useChatbotStore = defineStore('chatbot', () => {
             }
         }
 
+        // Fallback: extraer objetos JSON embebidos dentro de texto adicional.
+        for (const contenido of candidatos) {
+            const fragmentos = contenido.match(/\{[\s\S]*?\}/g) || [];
+            for (const fragmento of fragmentos) {
+                try {
+                    const parsedFragmento = JSON.parse(fragmento.trim());
+                    if (parsedFragmento?.accion === 'agendar' && parsedFragmento?.resumen) return parsedFragmento;
+                } catch {
+                    // continuar con siguiente fragmento
+                }
+            }
+        }
+
         return null;
     }
 
     async function cargarAbogadosDisponibles() {
-        if (!usuarioStore.token) {
-            throw new Error('Debes iniciar sesión para ver abogados disponibles.');
-        }
+        asegurarSesionActiva();
         const response = await fetch("http://localhost:3000/api/abogados", {
             headers: { "Authorization": `Bearer ${usuarioStore.token}` }
         });
-        const data = await response.json();
+        const data = await parseResponseSafe(response);
         if (!response.ok) {
+            if (response.status === 401) manejarErrorAutenticacion(data);
             throw new Error(data?.error || data?.mensaje || 'No se pudo cargar la lista de abogados.');
         }
         abogadosDisponibles.value = data?.abogados || [];
@@ -74,14 +114,13 @@ export const useChatbotStore = defineStore('chatbot', () => {
     }
 
     async function cargarDisponibilidadAbogado(idAbogadoUsuario) {
-        if (!usuarioStore.token) {
-            throw new Error('Debes iniciar sesión para ver disponibilidad.');
-        }
+        asegurarSesionActiva();
         const response = await fetch(`http://localhost:3000/api/calendario/abogado/${idAbogadoUsuario}/disponibilidad`, {
             headers: { "Authorization": `Bearer ${usuarioStore.token}` }
         });
-        const data = await response.json();
+        const data = await parseResponseSafe(response);
         if (!response.ok) {
+            if (response.status === 401) manejarErrorAutenticacion(data);
             throw new Error(data?.error || data?.mensaje || 'No se pudo cargar disponibilidad del abogado.');
         }
         disponibilidadAbogado.value = data?.disponibilidad || [];
@@ -89,6 +128,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
     }
 
     async function enviarMensaje(mensaje) {
+        asegurarSesionActiva();
         cargando.value = true;
         error.value = null;
         try {
@@ -99,8 +139,9 @@ export const useChatbotStore = defineStore('chatbot', () => {
                 body: JSON.stringify({ idUsuario: usuarioStore.usuario.id, mensaje }),
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${usuarioStore.token}` }
             });
-            const data = await response.json();
+            const data = await parseResponseSafe(response);
             if (!response.ok) {
+                if (response.status === 401) manejarErrorAutenticacion(data);
                 throw new Error(data?.error || data?.mensaje || 'No se pudo consultar el chatbot.');
             }
 
@@ -150,6 +191,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
         pendienteAgendar.value = null;
         disponibilidadAbogado.value = [];
     }
+
 
     return {
         mensajes,

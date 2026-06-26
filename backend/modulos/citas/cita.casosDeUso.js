@@ -42,6 +42,9 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
   if (rAbogado.rows.length === 0) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
   var pkAbogado = rAbogado.rows[0].id
 
+  var conflictoHora = await ctaRepo.existeConflictoAbogado(pkAbogado, fechaHoraCopia)
+  if (conflictoHora) throw Object.assign(new Error('Este abogado ya tiene una cita en esa hora'), { status: 409 })
+
   if (idCalendario) {
     var ocupado = await ctaRepo.slotOcupado(idCalendario)
     if (ocupado) throw Object.assign(new Error('El horario ya esta reservado'), { status: 409 })
@@ -85,6 +88,9 @@ export var aceptarCita = async (id) => {
 export async function reprogramarCita(id, fechaHoraCopia, idCalendario) {
   var existe = await ctaRepo.buscarPorId(id)
   if (!existe) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+
+  var conflictoHora = await ctaRepo.existeConflictoAbogado(existe.idAbogado, fechaHoraCopia, id)
+  if (conflictoHora) throw Object.assign(new Error('El abogado ya tiene una cita en ese nuevo horario'), { status: 409 })
 
   if (idCalendario) {
     var ocupado = await ctaRepo.slotOcupado(idCalendario)

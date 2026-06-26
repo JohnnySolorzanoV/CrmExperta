@@ -1,99 +1,436 @@
 <script setup>
+const indicadoresClave = [
+  { valor: '4h', etiqueta: 'Tiempo promedio de primera respuesta' },
+  { valor: '312', etiqueta: 'Consultas atendidas en los ultimos 12 meses' },
+  { valor: '92%', etiqueta: 'Clientes que califican la atencion como clara y oportuna' },
+]
 
+const areasPractica = [
+  'Derecho familiar: custodia, regimen de visitas, alimentos y acuerdos de convivencia.',
+  'Derecho civil: contratos, obligaciones y responsabilidad civil para personas y pequenas empresas.',
+  'Derecho sucesorio: testamentos, particion de bienes y acompanamiento en procesos hereditarios.',
+  'Leyes de transito: defensa en infracciones, impugnaciones y regularizacion documental.',
+  'Constitucional: acciones de proteccion y defensa de derechos fundamentales.',
+]
+
+const bitacoraDespacho = [
+  {
+    etapa: 'Diagnostico legal',
+    detalle:
+      'Escuchamos tu caso, revisamos documentos iniciales y definimos el riesgo legal real de la situacion.',
+  },
+  {
+    etapa: 'Estrategia y ruta',
+    detalle: 'Te entregamos una hoja de ruta concreta con tiempos estimados, prioridades y responsables.',
+  },
+  {
+    etapa: 'Gestion activa',
+    detalle:
+      'Preparamos escritos, coordinamos audiencias y te mantenemos al tanto con avances sin lenguaje tecnico innecesario.',
+  },
+  {
+    etapa: 'Cierre y seguimiento',
+    detalle:
+      'Cerramos el proceso con recomendaciones practicas para proteger tu posicion en el mediano plazo.',
+  },
+]
+
+const metodoEquipo = [
+  'Atencion personalizada por caso, sin respuestas genericas.',
+  'Explicaciones en lenguaje claro antes de cada decision relevante.',
+  'Priorizacion de acuerdos viables cuando reducen desgaste y tiempo.',
+]
 </script>
 
 <template>
-
-  <div class="container text-center mt-5 mb-5">
-    <div class="row">
-      <div class="col">
-        <h4 class=" mb-5 mt-5">Bienvenido a Experta&Abogados</h4>
+  <section class="landing-inicio">
+    <header class="hero-legal">
+      <h1>Defensa legal con estrategia, claridad y acompanamiento constante.</h1>
+      <p class="hero-copy">
+        En Experta&Abogados trabajamos casos familiares, civiles y sucesorios con un metodo de despacho que
+        combina analisis tecnico y comunicacion directa para que sepas que pasa en cada etapa de tu proceso.
+      </p>
+      <div class="hero-actions">
+        <RouterLink class="btn btn-primary btn-cta" to="/crearPerfil">Agendar primera consulta</RouterLink>
+        <RouterLink class="btn btn-outline-light btn-cta" to="/loginPerfil">Iniciar sesion</RouterLink>
       </div>
-      <div class="col">
-        <p class="lead mt-5 mb-5">Consorcio especializado en defensa familiar, derecho constitucional, derecho civil, leyes de tránsito y derecho sucesorio.</p>
+    </header>
+
+    <section class="panel panel-indicadores full-width-band" aria-label="Indicadores del despacho">
+      <div class="band-inner indicadores-grid">
+        <article v-for="indicador in indicadoresClave" :key="indicador.etiqueta" class="indicador-card">
+          <p class="indicador-valor">{{ indicador.valor }}</p>
+          <p class="indicador-etiqueta">{{ indicador.etiqueta }}</p>
+        </article>
       </div>
-    </div>
-  </div>
+    </section>
 
+    <section class="panel panel-areas" aria-labelledby="areas-practica">
+      <h2 id="areas-practica">Areas de practica para casos de alta sensibilidad.</h2>
+      <ul class="areas-lista">
+        <li v-for="area in areasPractica" :key="area">{{ area }}</li>
+      </ul>
+    </section>
 
-  <div>
-    <div class="container text-center ">
-      <h4 class="mb-4">Nuestros Profesionales </h4>
-    </div>
-    <p class="mt-4 mb-4">Tienen como propósito brindar una atención jurídica de calidad y personalizada a sus clientes, con el objetivo de proteger sus derechos y garantizar su interés legal.</p>
-  </div>
-
-
-  <div>
-    <h4 class="mt-4 mb-4">Ingresa tus credenciales</h4>
-    <p class="mt-4 mb-4">Y forma parte de nuestras comunidad de clientes, donde puedes acceder a nuestro chatbot personalizado que te ayudara con las dudas que tengas y te guiara paso a paso para que puedas agendar tu cita </p>
-  </div>
-
-
-  <div class="border">
-    <div class="tituloInicioSesion container text-center mt-0 mb-5 mx-0">
-      <h5 class="mb-0 mt-2">INICIA TU SESION O REGISTRATE AQUI</h5>
-    </div>
-    <div class="botonesInicio container text-center bg-light-subtle my-5  ">
-      <div class="row">
-        <RouterLink type="button" class="btn btn-primary mt-3" to="/loginPerfil"> Iniciar sesión </RouterLink>
-        <RouterLink type="button" class="btn btn-secondary mt-3" to="/crearPerfil"> Registrate comocliente </RouterLink>
+    <section class="panel bitacora-panel full-width-band" aria-labelledby="bitacora-despacho">
+      <div class="band-inner">
+        <h2 id="bitacora-despacho">Asi acompanamos cada caso desde la primera consulta.</h2>
+        <ol class="bitacora-lista">
+          <li v-for="(item, index) in bitacoraDespacho" :key="item.etapa" class="bitacora-item">
+            <p class="bitacora-index">{{ String(index + 1).padStart(2, '0') }}</p>
+            <div>
+              <h3>{{ item.etapa }}</h3>
+              <p>{{ item.detalle }}</p>
+            </div>
+          </li>
+        </ol>
       </div>
-    </div>
-  </div>
-  <div class="mb-5 mt-5">
-    <h4 class="mb-4">Contactanos en</h4>
-    <p>Calle Imbabura entre Bolivar y Fernando Valdivieso 158-14</p>
-    <div>
-      <a class="icon-link link-dark link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover"
-        href="https://www.instagram.com/expertaabogados?igsh=MXZzaHVpcXIyMHNrcg==" target="_blank"
-        rel="noopener noreferrer">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-instagram"
-          viewBox="0 0 16 16">
-          <path
-            d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92m-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217m0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334" />
-        </svg>
-        Instagram
-      </a>
-    </div>
-    <div>
-      <a class="icon-link link-dark link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover"
-        href="https://w.app/adzhpg" target="_blank" rel="noopener noreferrer">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-whatsapp"
-          viewBox="0 0 16 16">
-          <path
-            d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232" />
-        </svg>
-        WhatsApp
-      </a>
-    </div>
-  </div>
+    </section>
+
+    <section class="panel panel-equipo" aria-labelledby="metodo-equipo">
+      <h2 id="metodo-equipo">Criterio legal riguroso y atencion humana en cada decision.</h2>
+      <ul class="metodo-lista">
+        <li v-for="item in metodoEquipo" :key="item">{{ item }}</li>
+      </ul>
+    </section>
+
+    <section class="panel panel-contacto" aria-labelledby="contacto-despacho">
+      <h2 id="contacto-despacho">Agenda una orientacion legal hoy.</h2>
+      <p class="contacto-direccion">Calle Imbabura entre Bolivar y Fernando Valdivieso 158-14</p>
+      <div class="contacto-actions">
+        <a
+          class="contacto-link"
+          href="https://www.instagram.com/expertaabogados?igsh=MXZzaHVpcXIyMHNrcg=="
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Instagram
+        </a>
+        <a class="contacto-link" href="https://w.app/adzhpg" target="_blank" rel="noopener noreferrer">
+          WhatsApp
+        </a>
+      </div>
+      <div class="hero-actions contacto-cta">
+        <RouterLink class="btn btn-primary btn-cta" to="/crearPerfil">Crear cuenta y reservar</RouterLink>
+        <RouterLink class="btn btn-outline-light btn-cta" to="/loginPerfil">Ya tengo cuenta</RouterLink>
+      </div>
+    </section>
+  </section>
 </template>
 
 <style scoped>
-.tituloInicioSesion {
-  margin-top: 100px;
-  margin-bottom: 0px;
+.landing-inicio {
+  --obsidiana: #0f172a;
+  --bronce-legal: #b08b57;
+  --marfil-notarial: #f7f3ec;
+  --grafito: #334155;
+  --verde-resolucion: #3d7a66;
+  --humo: #e2e8f0;
+  max-width: 1120px;
+  margin: 2.8rem auto 4.25rem;
+  padding: 0 0.75rem 2rem;
+  display: grid;
+  gap: 2rem;
+}
+
+.hero-legal {
+  padding: 8rem;
+  border: 1px solid color-mix(in srgb, var(--bs-light, #e4e4e4) 25%, transparent);
+  border-bottom: 3px solid var(--bs-primary, #dab656);
+  background:
+    linear-gradient(90deg, rgba(218, 182, 86, 0.16), rgba(218, 182, 86, 0)),
+    rgba(33, 37, 41, 0.92);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+  color: var(--marfil-notarial);
+}
+
+.hero-legal h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  max-width: 20ch;
+}
+
+.hero-copy {
+  margin: 1rem 0 0;
+  max-width: 65ch;
+  color: color-mix(in srgb, var(--bs-light, #e4e4e4) 90%, white);
+  line-height: 1.6;
+}
+
+.hero-actions {
+  margin-top: 1.4rem;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
-.btn {
-  width: 150px;
-  margin: 10px;
+.btn-cta {
+  min-width: 220px;
+  font-weight: 700;
 }
 
-.row {
-  display: flex;
-  justify-content: center;
+.panel {
+  border: 1px solid color-mix(in srgb, var(--bs-dark, #212529) 24%, transparent);
+  background: rgba(247, 243, 236, 0.9);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  padding: 8rem;
 }
 
-.border {
-  border: 2px solid #dab656 !important;
-  width: fit-content;
+.full-width-band {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.band-inner {
+  max-width: 1120px;
   margin: 0 auto;
-  border-radius: 10px;
-  border-width: 5px;
+  padding-left: 8rem;
+  padding-right: 8rem;
+}
+
+.panel-indicadores {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+  background: linear-gradient(180deg, rgba(247, 243, 236, 0.95), rgba(226, 232, 240, 0.95));
+}
+
+.indicadores-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.indicador-card {
+  border: 1px solid color-mix(in srgb, var(--bs-primary, #dab656) 32%, transparent);
+  padding: 1.15rem 1rem;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.indicador-valor {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  font-weight: 800;
+  color: var(--obsidiana);
+}
+
+.indicador-etiqueta {
+  margin: 0.25rem 0 0;
+  font-size: 0.84rem;
+  color: var(--grafito);
+  line-height: 1.35;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.8vw, 1.75rem);
+  color: var(--obsidiana);
+  max-width: 35ch;
+  line-height: 1.2;
+}
+
+.areas-lista {
+  margin: 1.3rem 0 0;
+  padding-left: 1.1rem;
+  columns: 2;
+  column-gap: 1.4rem;
+}
+
+.areas-lista li {
+  break-inside: avoid;
+  margin-bottom: 0.8rem;
+  color: var(--grafito);
+  line-height: 1.55;
+}
+
+.areas-lista li::marker {
+  color: var(--bs-primary, #dab656);
+}
+
+.bitacora-panel {
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(28, 44, 73, 0.94));
+  color: var(--humo);
+}
+
+.bitacora-panel h2 {
+  color: var(--marfil-notarial);
+}
+
+.bitacora-lista {
+  margin: 1.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.bitacora-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 1.05rem;
+  border-top: 1px solid rgba(226, 232, 240, 0.25);
+  padding-top: 1rem;
+}
+
+.bitacora-index {
+  margin: 0;
+  min-width: 2.2rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--bs-primary, #dab656);
+}
+
+.bitacora-item h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.bitacora-item p {
+  margin: 0.35rem 0 0;
+  line-height: 1.55;
+}
+
+.metodo-lista {
+  margin: 1.2rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--grafito);
+  line-height: 1.7;
+}
+
+.metodo-lista li::marker {
+  color: var(--verde-resolucion);
+}
+
+.panel-contacto {
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.95), rgba(15, 23, 42, 0.95));
+  border-color: color-mix(in srgb, var(--bs-primary, #dab656) 45%, transparent);
+  color: #f8fafc;
+}
+
+.panel-contacto h2 {
+  margin: 0;
+  max-width: 33ch;
+  line-height: 1.2;
+  color: #f8fafc;
+}
+
+.contacto-direccion {
+  margin: 0.8rem 0 0;
+  color: color-mix(in srgb, #f8fafc 92%, var(--bs-primary, #dab656));
+}
+
+.contacto-actions {
+  margin-top: 1.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.contacto-link {
+  color: var(--bs-light, #e4e4e4);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  font-weight: 600;
+}
+
+.contacto-link:hover {
+  color: var(--bs-primary, #dab656);
+  border-bottom-color: currentColor;
+}
+
+.contacto-link:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--bs-primary, #dab656);
+  outline-offset: 2px;
+}
+
+.contacto-cta {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .hero-legal,
+  .panel {
+    padding: 3rem 2.5rem;
+  }
+
+  .band-inner {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  .indicadores-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .landing-inicio {
+    margin-top: 1.2rem;
+    padding: 0;
+    gap: 1.3rem;
+  }
+
+  .hero-legal,
+  .panel {
+    padding: 2rem 1.5rem;
+  }
+
+  .band-inner {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .panel-indicadores {
+    padding-top: 1.35rem;
+    padding-bottom: 1.35rem;
+  }
+
+  .indicadores-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .areas-lista {
+    columns: 1;
+  }
+
+  .bitacora-panel {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .hero-actions,
+  .contacto-actions {
+    flex-direction: column;
+  }
+
+  .btn-cta {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 </style>

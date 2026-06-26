@@ -70,6 +70,13 @@ CREATE TABLE Cita (
     CONSTRAINT cita_abogado_requerido CHECK (id_abogado IS NOT NULL)
 );
 
+-- One active (non-cancelled) appointment per lawyer per clock-hour.
+-- Partial index so cancelled rows do not block the slot.
+-- Run once; idempotent via IF NOT EXISTS. If existing duplicates exist, clean them first.
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_abogado_hora_activa
+  ON Cita (id_abogado, date_trunc('hour', fecha_hora_copia))
+  WHERE estado_cita != 'cancelada';
+
 CREATE TABLE Documento (
     id SERIAL PRIMARY KEY,
     id_caso INTEGER NOT NULL REFERENCES Caso(id) ON DELETE CASCADE,

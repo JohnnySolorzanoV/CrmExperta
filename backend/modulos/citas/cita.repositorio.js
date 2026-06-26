@@ -69,6 +69,20 @@ export async function slotOcupado(idCal) {
   return r.rows.length > 0
 }
 
+export async function existeConflictoAbogado(idAbogado, fechaHora, excluirCitaId = null) {
+  var sql = `SELECT id FROM Cita
+    WHERE id_abogado = $1
+      AND date_trunc('hour', fecha_hora_copia) = date_trunc('hour', $2::timestamp)
+      AND estado_cita != 'cancelada'`
+  var params = [idAbogado, fechaHora]
+  if (excluirCitaId != null) {
+    sql += ' AND id != $3'
+    params.push(excluirCitaId)
+  }
+  var r = await query(sql, params)
+  return r.rows.length > 0
+}
+
 export async function crear(cita) {
   var r = await query(
     `INSERT INTO Cita (id_cliente, id_abogado, fecha_hora_copia, id_calendario, motivo, estado_cita, resumen_chatbot)
