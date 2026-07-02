@@ -4,7 +4,7 @@ import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
-var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5433/crm_experta'
+var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
 var __dirname = dirname(fileURLToPath(import.meta.url))
 
 var CORREO_ADMIN = 'admin@crm.com'
