@@ -4,7 +4,8 @@ import { Cita } from '../../entidades/cita.js'
 var SQL_COLS = `id, id_cliente as "idCliente", id_abogado as "idAbogado",
                 fecha_hora_copia as "fechaHoraCopia", id_calendario as "idCalendario",
                 motivo, estado_cita as "estadoCita", resumen_chatbot as "resumenChatbot",
-                created_at as "createdAt"`
+                created_at as "createdAt", google_event_id as "googleEventId",
+                motivo_cancelacion as "motivoCancelacion", cancelado_por as "canceladoPor"`
 var SQL_CT = `SELECT ${SQL_COLS}`
 
 export async function obtenerTodas() {
@@ -30,6 +31,9 @@ export async function buscarPorCliente(idC) {
       c.estado_cita as "estadoCita",
       c.resumen_chatbot as "resumenChatbot",
       c.created_at as "createdAt",
+      c.google_event_id as "googleEventId",
+      c.motivo_cancelacion as "motivoCancelacion",
+      c.cancelado_por as "canceladoPor",
       usr.nombre as "abogadoNombre"
      FROM Cita c
      JOIN Abogado a ON a.id = c.id_abogado
@@ -53,6 +57,9 @@ export async function buscarPorAbogado(idA) {
       c.estado_cita as "estadoCita",
       c.resumen_chatbot as "resumenChatbot",
       c.created_at as "createdAt",
+      c.google_event_id as "googleEventId",
+      c.motivo_cancelacion as "motivoCancelacion",
+      c.cancelado_por as "canceladoPor",
       uc.nombre as "clienteNombre"
      FROM Cita c
      JOIN Cliente cl ON cl.id = c.id_cliente
@@ -101,6 +108,24 @@ export async function actualizarEstado(id, estado) {
   )
   if (r.rows.length === 0) return null
   return new Cita(r.rows[0])
+}
+
+/** Sets estado_cita = 'cancelada' together with the cancellation audit fields. */
+export async function cancelarConMotivo(id, motivoCancelacion, canceladoPor) {
+  var r = await query(
+    `UPDATE Cita
+     SET estado_cita = 'cancelada', motivo_cancelacion = $2, cancelado_por = $3
+     WHERE id = $1
+     RETURNING ${SQL_COLS}`,
+    [id, motivoCancelacion || null, canceladoPor || null]
+  )
+  if (r.rows.length === 0) return null
+  return new Cita(r.rows[0])
+}
+
+/** Stores the Google Calendar event ID after it has been created asynchronously. */
+export async function actualizarGoogleEventId(id, googleEventId) {
+  await query('UPDATE Cita SET google_event_id = $1 WHERE id = $2', [googleEventId, id])
 }
 
 export async function actualizarFecha(id, fechaHoraCopia, idCalendario) {

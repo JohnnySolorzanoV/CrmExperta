@@ -67,12 +67,15 @@ CREATE TABLE Cita (
     estado_cita VARCHAR(20) DEFAULT 'pendiente',
     resumen_chatbot TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    google_event_id VARCHAR(255),
+    motivo_cancelacion TEXT,
+    cancelado_por VARCHAR(50),
     CONSTRAINT cita_abogado_requerido CHECK (id_abogado IS NOT NULL)
 );
 
 -- One active (non-cancelled) appointment per lawyer per clock-hour.
 -- Partial index so cancelled rows do not block the slot.
--- Run once; idempotent via IF NOT EXISTS. If existing duplicates exist, clean them first.
+-- Run once and is idempotent via IF NOT EXISTS. If existing duplicates exist, clean them first.
 CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_abogado_hora_activa
   ON Cita (id_abogado, date_trunc('hour', fecha_hora_copia))
   WHERE estado_cita != 'cancelada';

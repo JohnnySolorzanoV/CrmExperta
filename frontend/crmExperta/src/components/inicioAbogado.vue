@@ -17,6 +17,13 @@ const mostrandoCrearCaso = ref(false)
 const citaSeleccionada = ref(null)
 const creandoCaso = ref(false)
 const errorCaso = ref('')
+
+// Cancel modal state
+const mostrandoCancelar = ref(false)
+const citaCancelarId = ref(null)
+const motivoCancelar = ref('')
+const cancelando = ref(false)
+const errorCancelar = ref('')
 const vistaActiva = ref('calendario') // 'calendario' | 'lista' | 'casos'
 
 const ESTADO_CASO_LABEL = {
@@ -154,19 +161,41 @@ async function fetchCasos() {
   }
 }
 
-async function cancelarCita(id) {
-  if (!confirm('¿Cancelar esta cita?')) return
+function cancelarCita(id) {
+  citaCancelarId.value = id
+  motivoCancelar.value = ''
+  errorCancelar.value = ''
+  mostrandoCancelar.value = true
+}
+
+function cerrarCancelar() {
+  mostrandoCancelar.value = false
+  citaCancelarId.value = null
+  motivoCancelar.value = ''
+  errorCancelar.value = ''
+}
+
+async function confirmarCancelacion() {
   if (!usuarioStore.token) {
-    mensaje.value = 'Debes iniciar sesión para cancelar una cita.'
+    errorCancelar.value = 'Debes iniciar sesión para cancelar una cita.'
     return
   }
+  cancelando.value = true
+  errorCancelar.value = ''
   try {
-    const res = await fetch(`/api/citas/${id}/cancelar`, { method: 'PUT', headers: authHeaders() })
-    if (!res.ok) throw new Error('No se pudo cancelar la cita')
-    alert('Cita cancelada')
+    const res = await fetch(`/api/citas/${citaCancelarId.value}/cancelar`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ motivoCancelacion: motivoCancelar.value, canceladoPor: 'abogado' }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || data?.mensaje || 'No se pudo cancelar la cita')
+    cerrarCancelar()
     await fetchCitas()
   } catch (e) {
-    mensaje.value = e.message
+    errorCancelar.value = e.message
+  } finally {
+    cancelando.value = false
   }
 }
 
@@ -447,6 +476,42 @@ async function crearCasoDesdeCita() {
       </template>
     </div>
 
+    <!-- ── Cancel cita modal ──────────────────────────────────── -->
+    <div v-if="mostrandoCancelar" class="ia-modal-backdrop" @click.self="cerrarCancelar">
+      <div class="ia-modal-card">
+        <p class="ia-eyebrow">Cancelar cita</p>
+        <h3 class="ia-modal-title">Confirmar cancelación</h3>
+        <p class="ia-modal-meta">
+          Esta acción no se puede deshacer. El cliente y el abogado recibirán un correo de notificación
+          y el evento de Google Calendar será eliminado.
+        </p>
+
+        <div class="ia-field">
+          <label class="ia-label">Motivo de cancelación <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+          <textarea
+            v-model="motivoCancelar"
+            class="ia-input"
+            rows="3"
+            placeholder="Ej: Conflicto de horario, el cliente solicitó reagendar…"
+            :disabled="cancelando"
+            style="resize:vertical"
+          ></textarea>
+        </div>
+
+        <div v-if="errorCancelar" class="ia-error-bar ia-error-bar--soft">{{ errorCancelar }}</div>
+
+        <div class="ia-modal-actions">
+          <button class="ia-btn ia-btn--ghost" @click="cerrarCancelar" :disabled="cancelando">
+            Volver
+          </button>
+          <button class="ia-btn ia-btn--danger" @click="confirmarCancelacion" :disabled="cancelando">
+            {{ cancelando ? 'Cancelando…' : 'Confirmar cancelación' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Crear caso modal ───────────────────────────────────── -->
     <div v-if="mostrandoCrearCaso" class="ia-modal-backdrop">
       <div class="ia-modal-card">
         <p class="ia-eyebrow">Crear expediente</p>

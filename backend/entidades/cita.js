@@ -11,5 +11,8 @@ export class Cita {
     this.estadoCita = x.estadoCita || 'pendiente'
     this.resumenChatbot = x.resumenChatbot
     this.createdAt = x.createdAt
+    this.googleEventId = x.googleEventId || null
+    this.motivoCancelacion = x.motivoCancelacion || null
+    this.canceladoPor = x.canceladoPor || null
   }
 }

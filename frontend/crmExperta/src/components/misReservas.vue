@@ -16,6 +16,13 @@ const error = ref('')
 const vistaActiva = ref('calendario')
 const mostrarCitasAnteriores = ref(false)
 
+// Cancel modal state
+const mostrandoCancelar = ref(false)
+const citaCancelarId = ref(null)
+const motivoCancelarCliente = ref('')
+const cancelandoCita = ref(false)
+const errorCancelar = ref('')
+
 const ESTADO_CITA_LABEL = {
   pendiente: 'Pendiente',
   confirmada: 'Confirmada',
@@ -157,7 +164,7 @@ async function cargarReservas() {
   cargando.value = true
   error.value = ''
   try {
-    const res = await fetch(`http://localhost:3000/api/citas/cliente/${usuarioStore.usuario.id}`, {
+    const res = await fetch(`/api/citas/cliente/${usuarioStore.usuario.id}`, {
       headers: { Authorization: `Bearer ${usuarioStore.token}` },
     })
     const data = await res.json()
@@ -167,6 +174,48 @@ async function cargarReservas() {
     error.value = e.message
   } finally {
     cargando.value = false
+  }
+}
+
+function puedesCancelar(r) {
+  return !esReservaPasada(r.fechaHoraCopia) && (r.estadoCita === 'pendiente' || r.estadoCita === 'confirmada')
+}
+
+function abrirCancelar(id) {
+  citaCancelarId.value = id
+  motivoCancelarCliente.value = ''
+  errorCancelar.value = ''
+  mostrandoCancelar.value = true
+}
+
+function cerrarCancelar() {
+  mostrandoCancelar.value = false
+  citaCancelarId.value = null
+  motivoCancelarCliente.value = ''
+  errorCancelar.value = ''
+}
+
+async function confirmarCancelacionCliente() {
+  if (!usuarioStore.token) {
+    errorCancelar.value = 'Debes iniciar sesión para cancelar una cita.'
+    return
+  }
+  cancelandoCita.value = true
+  errorCancelar.value = ''
+  try {
+    const res = await fetch(`/api/citas/${citaCancelarId.value}/cancelar`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${usuarioStore.token}` },
+      body: JSON.stringify({ motivoCancelacion: motivoCancelarCliente.value, canceladoPor: 'cliente' }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || data?.mensaje || 'No se pudo cancelar la cita')
+    cerrarCancelar()
+    await cargarReservas()
+  } catch (e) {
+    errorCancelar.value = e.message
+  } finally {
+    cancelandoCita.value = false
   }
 }
 
@@ -372,11 +421,20 @@ onMounted(async () => {
               <p class="mr-cita-motivo">{{ r.motivo || 'Sin motivo especificado' }}</p>
             </div>
 
-            <!-- Status -->
+            <!-- Status + cancel action -->
             <div class="mr-cita-status">
               <span class="mr-badge" :class="`mr-badge--${ESTADO_CITA_VARIANT[r.estadoCita] || 'muted'}`">
                 {{ ESTADO_CITA_LABEL[r.estadoCita] || r.estadoCita || 'Pendiente' }}
               </span>
+              <button
+                v-if="puedesCancelar(r)"
+                class="mr-cancel-btn"
+                type="button"
+                @click="abrirCancelar(r.id)"
+                title="Cancelar esta cita"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
@@ -455,6 +513,44 @@ onMounted(async () => {
       </template>
 
     </div>
+
+    <!-- ── Cancel cita modal ──────────────────────────────────── -->
+    <div v-if="mostrandoCancelar" class="mr-modal-backdrop" @click.self="cerrarCancelar">
+      <div class="mr-modal-card">
+        <p class="mr-eyebrow" style="margin:0 0 4px">Cancelar cita</p>
+        <h3 class="mr-modal-title">Confirmar cancelación</h3>
+        <p class="mr-modal-meta">
+          Esta acción no se puede deshacer. Recibirás un correo de confirmación y el evento de tu
+          Google Calendar será eliminado.
+        </p>
+
+        <div class="mr-modal-field">
+          <label class="mr-modal-label">
+            Motivo de cancelación
+            <span style="font-weight:400;color:var(--muted)">(opcional)</span>
+          </label>
+          <textarea
+            v-model="motivoCancelarCliente"
+            class="mr-modal-textarea"
+            rows="3"
+            placeholder="Ej: Conflicto de horario, necesito reagendar…"
+            :disabled="cancelandoCita"
+          ></textarea>
+        </div>
+
+        <div v-if="errorCancelar" class="mr-modal-error">{{ errorCancelar }}</div>
+
+        <div class="mr-modal-actions">
+          <button class="mr-modal-btn mr-modal-btn--ghost" @click="cerrarCancelar" :disabled="cancelandoCita">
+            Volver
+          </button>
+          <button class="mr-modal-btn mr-modal-btn--danger" @click="confirmarCancelacionCliente" :disabled="cancelandoCita">
+            {{ cancelandoCita ? 'Cancelando…' : 'Confirmar cancelación' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -1087,11 +1183,157 @@ onMounted(async () => {
   }
 }
 
+/* ══ Cancel button (inside cita status cell) ════════════════ */
+.mr-cita-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.mr-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--danger);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.mr-cancel-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.mr-cancel-btn:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
+/* ══ Cancel modal ═══════════════════════════════════════════ */
+.mr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.mr-modal-card {
+  width: min(520px, 92vw);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.mr-modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 0.5rem;
+}
+
+.mr-modal-meta {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0 0 1rem;
+}
+
+.mr-modal-field {
+  margin-bottom: 0.75rem;
+}
+
+.mr-modal-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.mr-modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--surface);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.mr-modal-textarea:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.mr-modal-error {
+  padding: 0.55rem 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 0.8125rem;
+  margin-bottom: 0.75rem;
+}
+
+.mr-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.mr-modal-btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.mr-modal-btn--ghost:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.mr-modal-btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.mr-modal-btn--danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.mr-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* ══ Reduced motion ═════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   .mr-skel { animation: none; }
   .mr-spin  { animation: none; }
   .mr-caso-card { transition: none; }
   .mr-caso-btn  { transition: none; }
+  .mr-cancel-btn { transition: none; }
 }
 </style>

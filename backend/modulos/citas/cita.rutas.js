@@ -47,7 +47,8 @@ router.post('/', verificarToken, verificarRol('cliente', 'administrador'), async
 
 router.put('/:id/cancelar', verificarToken, async (req, res, next) => {
   try {
-    var c = await cancelarCita(Number(req.params.id))
+    var { motivoCancelacion, canceladoPor } = req.body || {}
+    var c = await cancelarCita(Number(req.params.id), { motivoCancelacion, canceladoPor })
     res.json({ mensaje: 'Cita cancelada', cita: c })
   } catch (error) { next(error) }
 })
