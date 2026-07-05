@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useUsuarioStore } from './usuariostore';
+import { buildApiUrl } from '../utils/api';
 
 export const useChatbotStore = defineStore('chatbot', () => {
     const mensajes = ref([]);
@@ -39,7 +40,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
     async function agendarDesdeChat(datosAgendar, fechaHoraCopia, idAbogado, idCalendario) {
         asegurarSesionActiva();
-        const response = await fetch("http://localhost:3000/api/chatbot/agendar", {
+        const response = await fetch(buildApiUrl('/chatbot/agendar'), {
             method: "POST",
             body: JSON.stringify({
                 idCliente: usuarioStore.usuario.id,
@@ -101,7 +102,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
     async function cargarAbogadosDisponibles() {
         asegurarSesionActiva();
-        const response = await fetch("http://localhost:3000/api/abogados", {
+        const response = await fetch(buildApiUrl('/abogados'), {
             headers: { "Authorization": `Bearer ${usuarioStore.token}` }
         });
         const data = await parseResponseSafe(response);
@@ -115,7 +116,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
     async function cargarDisponibilidadAbogado(idAbogadoUsuario) {
         asegurarSesionActiva();
-        const response = await fetch(`http://localhost:3000/api/calendario/abogado/${idAbogadoUsuario}/disponibilidad`, {
+        const response = await fetch(buildApiUrl(`/calendario/abogado/${idAbogadoUsuario}/disponibilidad`), {
             headers: { "Authorization": `Bearer ${usuarioStore.token}` }
         });
         const data = await parseResponseSafe(response);
@@ -134,7 +135,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
         try {
             mensajes.value.push({ role: 'user', content: mensaje }) 
             
-            const response = await fetch("http://localhost:3000/api/chatbot/consultar", {
+            const response = await fetch(buildApiUrl('/chatbot/consultar'), {
                 method: "POST",
                 body: JSON.stringify({ idUsuario: usuarioStore.usuario.id, mensaje }),
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${usuarioStore.token}` }

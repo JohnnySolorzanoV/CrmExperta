@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { buildApiUrl } from '../utils/api';
 
 export const useUsuarioStore = defineStore('usuario', () => {
     const STORAGE_USUARIO = 'crm_usuario';
@@ -50,7 +51,7 @@ export const useUsuarioStore = defineStore('usuario', () => {
         cerrarSesion();
 
         try {
-            const response = await fetch("http://localhost:3000/api/auth/login", {
+            const response = await fetch(buildApiUrl('/auth/login'), {
                 method: "POST",
                 body: JSON.stringify({ correo, contrasena }),
                 headers: { "Content-Type": "application/json" }

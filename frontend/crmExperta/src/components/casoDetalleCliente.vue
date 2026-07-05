@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
+import { buildApiUrl } from '../utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,8 +42,8 @@ async function cargarCaso() {
   try {
     const casoId = Number(route.params.id)
     const [casoRes, docsRes] = await Promise.all([
-      fetch(`/api/casos/${casoId}`, { headers: authHeaders() }),
-      fetch(`/api/documentos/caso/${casoId}`, { headers: authHeaders() }),
+      fetch(buildApiUrl(`/casos/${casoId}`), { headers: authHeaders() }),
+      fetch(buildApiUrl(`/documentos/caso/${casoId}`), { headers: authHeaders() }),
     ])
 
     const casoData = await casoRes.json()

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
+import { buildApiUrl } from '../utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,8 +56,8 @@ async function cargarCaso() {
     const casoId = Number(route.params.id)
 
     const [casoRes, docsRes] = await Promise.all([
-      fetch(`/api/casos/${casoId}`, { headers: authHeaders() }),
-      fetch(`/api/documentos/caso/${casoId}`, { headers: authHeaders() })
+      fetch(buildApiUrl(`/casos/${casoId}`), { headers: authHeaders() }),
+      fetch(buildApiUrl(`/documentos/caso/${casoId}`), { headers: authHeaders() })
     ])
 
     const casoData = await casoRes.json()
@@ -90,7 +91,7 @@ async function actualizarEstadoCaso() {
   actualizandoEstado.value = true
   error.value = ''
   try {
-    const response = await fetch(`/api/casos/${caso.value.id}/estado`, {
+    const response = await fetch(buildApiUrl(`/casos/${caso.value.id}/estado`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -127,7 +128,7 @@ async function subirDocumentoCaso() {
       extension: formDocumento.value.extension,
       tamaño: formDocumento.value.tamaño
     }
-    const response = await fetch('/api/documentos', {
+    const response = await fetch(buildApiUrl('/documentos'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

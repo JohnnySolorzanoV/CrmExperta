@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { buildApiUrl } from '../utils/api';
 
 export const useCrearPerfilStore = defineStore('crearPerfil', () => {
     const cargando = ref(false);
@@ -11,7 +12,7 @@ export const useCrearPerfilStore = defineStore('crearPerfil', () => {
         error.value = null;
         usuario.value = null;
         try {
-            const response = await fetch("http://localhost:3000/api/clientes/registro", {
+            const response = await fetch(buildApiUrl('/clientes/registro'), {
                 method: "POST",
                 body: JSON.stringify({ identificacion, nombre, correo, contrasena, direccion, telefono }),
                 headers: { "Content-Type": "application/json" }

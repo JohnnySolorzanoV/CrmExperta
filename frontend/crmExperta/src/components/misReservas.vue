@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
 import { mapCitasToCalendarItems } from '../utils/calendarGrid'
+import { buildApiUrl } from '../utils/api'
 
 const usuarioStore = useUsuarioStore()
 const router = useRouter()
@@ -164,7 +165,7 @@ async function cargarReservas() {
   cargando.value = true
   error.value = ''
   try {
-    const res = await fetch(`/api/citas/cliente/${usuarioStore.usuario.id}`, {
+    const res = await fetch(buildApiUrl(`/citas/cliente/${usuarioStore.usuario.id}`), {
       headers: { Authorization: `Bearer ${usuarioStore.token}` },
     })
     const data = await res.json()
@@ -203,7 +204,7 @@ async function confirmarCancelacionCliente() {
   cancelandoCita.value = true
   errorCancelar.value = ''
   try {
-    const res = await fetch(`/api/citas/${citaCancelarId.value}/cancelar`, {
+    const res = await fetch(buildApiUrl(`/citas/${citaCancelarId.value}/cancelar`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${usuarioStore.token}` },
       body: JSON.stringify({ motivoCancelacion: motivoCancelarCliente.value, canceladoPor: 'cliente' }),
@@ -223,7 +224,7 @@ async function cargarCasos() {
   if (!usuarioStore.usuario?.id || !usuarioStore.token) return
   cargandoCasos.value = true
   try {
-    const res = await fetch(`/api/casos/cliente/${usuarioStore.usuario.id}`, {
+    const res = await fetch(buildApiUrl(`/casos/cliente/${usuarioStore.usuario.id}`), {
       headers: { Authorization: `Bearer ${usuarioStore.token}` },
     })
     const data = await res.json()

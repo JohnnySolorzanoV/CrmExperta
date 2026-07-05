@@ -15,37 +15,55 @@ import chatbotRutas from './modulos/chatbot/chatbot.rutas.js'
 
 envConfig()
 
-const APP = express()
+export const APP = express()
 var PUERTO = process.env.PORT || 3000
+var API_PREFIX = normalizarPrefijoApi(process.env.API_PREFIX)
 
 APP.use(corsMod())
 APP.use(express.json())
 
 var MODULOS_ACTIVOS = [
-  { ruta: '/api/auth', handler: authRutas },
-  { ruta: '/api/clientes', handler: clienteRutas },
-  { ruta: '/api/usuarios', handler: usuarioRutas },
-  { ruta: '/api/abogados', handler: abogadoRutas },
-  { ruta: '/api/calendario', handler: calendarioRutas },
-  { ruta: '/api/citas', handler: citaRutas },
-  { ruta: '/api/casos', handler: casoRutas },
-  { ruta: '/api/documentos', handler: documentoRutas },
-  { ruta: '/api/chatbot', handler: chatbotRutas },
+  { ruta: '/auth', handler: authRutas },
+  { ruta: '/clientes', handler: clienteRutas },
+  { ruta: '/usuarios', handler: usuarioRutas },
+  { ruta: '/abogados', handler: abogadoRutas },
+  { ruta: '/calendario', handler: calendarioRutas },
+  { ruta: '/citas', handler: citaRutas },
+  { ruta: '/casos', handler: casoRutas },
+  { ruta: '/documentos', handler: documentoRutas },
+  { ruta: '/chatbot', handler: chatbotRutas },
 ]
 
 for (var mod of MODULOS_ACTIVOS) {
-  APP.use(mod.ruta, mod.handler)
+  APP.use(armarRutaApi(mod.ruta), mod.handler)
 }
 
 APP.use(manejoDeErrores)
 
-probarConexion()
-  .then(() => {
+export async function iniciarServidor() {
+  try {
+    await probarConexion()
     APP.listen(PUERTO, () => {
       console.log('Servidor corriendo en ' + PUERTO)
     })
-  })
-  .catch(e => {
+  } catch (e) {
     console.error('error al iniciar:', e.message)
     process.exit(1)
-  })
+  }
+}
+
+var enPruebas = process.env.NODE_ENV === 'test' || process.env.VITEST
+if (!enPruebas) {
+  iniciarServidor()
+}
+
+function normalizarPrefijoApi(prefijo) {
+  var valor = (prefijo || '/api').trim()
+  if (!valor || valor === '/') return ''
+  var conSlashInicial = valor.startsWith('/') ? valor : `/${valor}`
+  return conSlashInicial.replace(/\/+$/, '')
+}
+
+function armarRutaApi(rutaModulo) {
+  return `${API_PREFIX}${rutaModulo}`
+}
