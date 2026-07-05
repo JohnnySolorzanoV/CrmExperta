@@ -3,8 +3,8 @@ import bcrypt from 'bcrypt'
 import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { crearConfigPool } from './config/database.js'
 
-var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
 var __dirname = dirname(fileURLToPath(import.meta.url))
 
 var CORREO_ADMIN = 'admin@crm.com'
@@ -28,7 +28,7 @@ async function ejecutarInitSql(POOL) {
 }
 
 async function seed() {
-  var POOL = new pg.Pool({ connectionString: DB_URL })
+  var POOL = new pg.Pool(crearConfigPool())
   var tablasExisten = await verificarTablas(POOL)
   if (!tablasExisten) {
     console.log('tablas no encontradas, ejecutando init.sql...')

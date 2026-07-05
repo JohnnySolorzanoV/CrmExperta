@@ -1,14 +1,27 @@
 import { default as pg } from 'pg'
 import dotenv from 'dotenv'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-dotenv.config()
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
-var DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
+dotenv.config({ path: resolve(__dirname, '..', '.env') })
 
-var connxion = new pg.Pool({
-  connectionString: DB_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-})
+export const DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
+
+export function crearConfigPool() {
+  var url = new URL(DB_URL)
+  url.searchParams.delete('sslmode')
+
+  var usaSsl = /ondigitalocean\.com/i.test(url.host)
+console.log("conectando a digital ocean")
+  return {
+    connectionString: url.toString(),
+    ssl: usaSsl ? { rejectUnauthorized: false } : false
+  }
+}
+
+var connxion = new pg.Pool(crearConfigPool())
 
 export async function ejecutarConsulta(txt, prms = []) {
   var cnn = null
