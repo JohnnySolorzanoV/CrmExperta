@@ -1,13 +1,15 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
-import { mapCitasToCalendarItems } from '../utils/calendarGrid'
+import { mapCitasToCalendarItems, mapSlotsToCalendarItems } from '../utils/calendarGrid'
 import { buildApiUrl } from '../utils/api'
+import { isPastDate, parseServerDate } from '../utils/datetime'
 
 const usuarioStore = useUsuarioStore()
 const router = useRouter()
+const route = useRoute()
 
 const reservas = ref([])
 const casos = ref([])
@@ -16,6 +18,7 @@ const cargandoCasos = ref(false)
 const error = ref('')
 const vistaActiva = ref('calendario')
 const mostrarCitasAnteriores = ref(false)
+const VENTANA_RECIENTE_MS = 2 * 60 * 60 * 1000
 
 // Cancel modal state
 const mostrandoCancelar = ref(false)
@@ -23,6 +26,38 @@ const citaCancelarId = ref(null)
 const motivoCancelarCliente = ref('')
 const cancelandoCita = ref(false)
 const errorCancelar = ref('')
+
+// Reschedule modal state
+const mostrandoReagendar = ref(false)
+const citaReagendar = ref(null)
+const slotsReagendar = ref([])
+const slotReagendarKey = ref('')
+const cargandoSlotsReagendar = ref(false)
+const reagendandoCita = ref(false)
+const errorReagendar = ref('')
+
+const slotsReagendarItems = computed(() => {
+  const disponibles = mapSlotsToCalendarItems(slotsReagendar.value)
+  const actual = citaReagendar.value
+  if (!actual?.fechaHoraCopia) return disponibles
+
+  const fechaActualIso = actual.fechaHoraCopia
+  const yaPresente = disponibles.some(
+    (i) => new Date(i._datetime).getTime() === new Date(fechaActualIso).getTime()
+  )
+  if (yaPresente) return disponibles
+
+  return [
+    ...disponibles,
+    {
+      id: `current-${actual.id}`,
+      _datetime: fechaActualIso,
+      label: formatearFecha(fechaActualIso),
+      variant: 'current',
+      type: 'slot',
+    },
+  ]
+})
 
 const ESTADO_CITA_LABEL = {
   pendiente: 'Pendiente',
@@ -37,7 +72,7 @@ const ESTADO_CITA_VARIANT = {
   confirmada: 'ok',
   cancelada: 'danger',
   completada: 'muted',
-  reprogramada: 'muted',
+  reprogramada: 'warn',
 }
 
 const ESTADO_CASO_VARIANT = {
@@ -60,26 +95,43 @@ const calendarItems = computed(() => mapCitasToCalendarItems(reservas.value))
 
 function formatearFecha(fechaIso) {
   if (!fechaIso) return 'Sin hora'
-  return new Intl.DateTimeFormat('es-EC', { hour: '2-digit', minute: '2-digit' }).format(new Date(fechaIso))
+  var fecha = parseServerDate(fechaIso)
+  if (!fecha) return 'Sin hora'
+  return new Intl.DateTimeFormat('es-EC', { hour: '2-digit', minute: '2-digit' }).format(fecha)
 }
 
 function formatearDia(fechaIso) {
   if (!fechaIso) return 'Sin día'
+  var fecha = parseServerDate(fechaIso)
+  if (!fecha) return 'Sin día'
   return new Intl.DateTimeFormat('es-EC', {
     weekday: 'long', day: '2-digit', month: 'long',
-  }).format(new Date(fechaIso))
+  }).format(fecha)
 }
 
 function formatearDiaCorto(fechaIso) {
   if (!fechaIso) return '–'
+  var fecha = parseServerDate(fechaIso)
+  if (!fecha) return '–'
   return new Intl.DateTimeFormat('es-EC', {
     day: '2-digit', month: 'short',
-  }).format(new Date(fechaIso))
+  }).format(fecha)
 }
 
 function esReservaPasada(fechaIso) {
-  if (!fechaIso) return false
-  return new Date(fechaIso).getTime() < Date.now()
+  return isPastDate(fechaIso)
+}
+
+function getMillis(fechaIso, fallback = Number.POSITIVE_INFINITY) {
+  var fecha = parseServerDate(fechaIso)
+  return fecha ? fecha.getTime() : fallback
+}
+
+function esReservaReciente(fechaIso) {
+  var ms = getMillis(fechaIso, Number.NaN)
+  if (Number.isNaN(ms)) return false
+  var delta = Date.now() - ms
+  return delta >= 0 && delta <= VENTANA_RECIENTE_MS
 }
 
 // ── Derived summary metrics ──────────────────────────────
@@ -87,8 +139,11 @@ function esReservaPasada(fechaIso) {
 const proximaCita = computed(() => {
   const ahora = Date.now()
   return [...reservas.value]
-    .filter(r => r.fechaHoraCopia && new Date(r.fechaHoraCopia).getTime() > ahora)
-    .sort((a, b) => new Date(a.fechaHoraCopia) - new Date(b.fechaHoraCopia))[0] || null
+    .filter(r => {
+      var fecha = parseServerDate(r.fechaHoraCopia)
+      return fecha && fecha.getTime() > ahora
+    })
+    .sort((a, b) => getMillis(a.fechaHoraCopia) - getMillis(b.fechaHoraCopia))[0] || null
 })
 
 const citasPendientesEstaSemana = computed(() => {
@@ -99,8 +154,8 @@ const citasPendientesEstaSemana = computed(() => {
   const fin = new Date(inicio)
   fin.setDate(inicio.getDate() + 7)
   return reservas.value.filter(r => {
-    if (!r.fechaHoraCopia) return false
-    const d = new Date(r.fechaHoraCopia)
+    const d = parseServerDate(r.fechaHoraCopia)
+    if (!d) return false
     return d >= inicio && d < fin && d > ahora
   }).length
 })
@@ -142,17 +197,19 @@ const casosAgrupadosPorEstado = computed(() => {
 const reservasOrdenadas = computed(() => {
   const futuras = reservas.value
     .filter(r => !esReservaPasada(r.fechaHoraCopia))
-    .sort((a, b) => new Date(a.fechaHoraCopia) - new Date(b.fechaHoraCopia))
+    .sort((a, b) => getMillis(a.fechaHoraCopia) - getMillis(b.fechaHoraCopia))
   const pasadas = reservas.value
     .filter(r => esReservaPasada(r.fechaHoraCopia))
-    .sort((a, b) => new Date(b.fechaHoraCopia) - new Date(a.fechaHoraCopia))
+    .sort((a, b) => getMillis(b.fechaHoraCopia, Number.NEGATIVE_INFINITY) - getMillis(a.fechaHoraCopia, Number.NEGATIVE_INFINITY))
   return [...futuras, ...pasadas]
 })
 
 const reservasVisiblesEnLista = computed(() =>
   mostrarCitasAnteriores.value
     ? reservasOrdenadas.value
-    : reservasOrdenadas.value.filter(r => !esReservaPasada(r.fechaHoraCopia))
+    : reservasOrdenadas.value.filter(
+      r => !esReservaPasada(r.fechaHoraCopia) || esReservaReciente(r.fechaHoraCopia)
+    )
 )
 
 // ── Data fetching ────────────────────────────────────────
@@ -179,7 +236,7 @@ async function cargarReservas() {
 }
 
 function puedesCancelar(r) {
-  return !esReservaPasada(r.fechaHoraCopia) && (r.estadoCita === 'pendiente' || r.estadoCita === 'confirmada')
+  return !esReservaPasada(r.fechaHoraCopia) && (r.estadoCita === 'pendiente' || r.estadoCita === 'confirmada' || r.estadoCita === 'reprogramada')
 }
 
 function abrirCancelar(id) {
@@ -220,6 +277,95 @@ async function confirmarCancelacionCliente() {
   }
 }
 
+function puedesReagendar(r) {
+  return !esReservaPasada(r.fechaHoraCopia) && (r.estadoCita === 'pendiente' || r.estadoCita === 'confirmada' || r.estadoCita === 'reprogramada')
+}
+
+async function abrirReagendar(cita) {
+  citaReagendar.value = cita
+  slotReagendarKey.value = ''
+  errorReagendar.value = ''
+  slotsReagendar.value = []
+  mostrandoReagendar.value = true
+  await cargarSlotsReagendar()
+}
+
+function cerrarReagendar() {
+  mostrandoReagendar.value = false
+  citaReagendar.value = null
+  slotReagendarKey.value = ''
+  errorReagendar.value = ''
+  slotsReagendar.value = []
+}
+
+async function cargarSlotsReagendar() {
+  if (!citaReagendar.value || !usuarioStore.token) return
+  cargandoSlotsReagendar.value = true
+  errorReagendar.value = ''
+  try {
+    // The backend accepts either the Usuario id or the Abogado PK for this endpoint.
+    const idAbogado = citaReagendar.value.idAbogado
+    const res = await fetch(buildApiUrl(`/calendario/abogado/${idAbogado}/disponibilidad`), {
+      headers: { Authorization: `Bearer ${usuarioStore.token}` },
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || data?.mensaje || 'No se pudo cargar la disponibilidad.')
+    slotsReagendar.value = data?.disponibilidad || []
+    if (slotsReagendar.value.length === 0) {
+      errorReagendar.value = 'Este abogado no tiene horarios disponibles próximamente.'
+    }
+  } catch (e) {
+    errorReagendar.value = e.message
+  } finally {
+    cargandoSlotsReagendar.value = false
+  }
+}
+
+async function confirmarReagendamiento() {
+  if (!citaReagendar.value || !usuarioStore.token) return
+  if (!slotReagendarKey.value) {
+    errorReagendar.value = 'Selecciona uno de los horarios disponibles en el calendario.'
+    return
+  }
+
+  const slot = slotsReagendar.value.find(
+    (s) => String(s.id != null ? s.id : s.fechaEvento) === String(slotReagendarKey.value)
+  )
+  if (!slot) {
+    slotReagendarKey.value = ''
+    errorReagendar.value = 'El horario seleccionado ya no está disponible. Elige otro.'
+    return
+  }
+
+  reagendandoCita.value = true
+  errorReagendar.value = ''
+  try {
+    const res = await fetch(buildApiUrl(`/citas/${citaReagendar.value.id}/reprogramar`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${usuarioStore.token}` },
+      body: JSON.stringify({ fechaHoraCopia: slot.fechaEvento, idCalendario: slot.id ?? null }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || data?.mensaje || 'No se pudo reprogramar la cita.')
+    cerrarReagendar()
+    await cargarReservas()
+  } catch (e) {
+    const esConflicto =
+      e.message?.includes('ya tiene una cita') ||
+      e.message?.includes('ya esta reservado') ||
+      e.message?.includes('ya está reservado')
+    if (esConflicto) {
+      slotReagendarKey.value = ''
+      errorReagendar.value = 'Ese horario acaba de ser reservado. Elige otro horario disponible.'
+      await cargarSlotsReagendar()
+    } else {
+      errorReagendar.value = e.message
+    }
+  } finally {
+    reagendandoCita.value = false
+  }
+}
+
 async function cargarCasos() {
   if (!usuarioStore.usuario?.id || !usuarioStore.token) return
   cargandoCasos.value = true
@@ -249,6 +395,14 @@ function recargar() {
 onMounted(async () => {
   await Promise.all([cargarReservas(), cargarCasos()])
 })
+
+watch(
+  () => route.query.fromBooking,
+  async (value) => {
+    if (!value) return
+    await cargarReservas()
+  }
+)
 </script>
 
 <template>
@@ -427,15 +581,26 @@ onMounted(async () => {
               <span class="mr-badge" :class="`mr-badge--${ESTADO_CITA_VARIANT[r.estadoCita] || 'muted'}`">
                 {{ ESTADO_CITA_LABEL[r.estadoCita] || r.estadoCita || 'Pendiente' }}
               </span>
-              <button
-                v-if="puedesCancelar(r)"
-                class="mr-cancel-btn"
-                type="button"
-                @click="abrirCancelar(r.id)"
-                title="Cancelar esta cita"
-              >
-                Cancelar
-              </button>
+              <div class="mr-cita-actions" v-if="puedesReagendar(r) || puedesCancelar(r)">
+                <button
+                  v-if="puedesReagendar(r)"
+                  class="mr-reagendar-btn"
+                  type="button"
+                  @click="abrirReagendar(r)"
+                  title="Elegir un nuevo horario para esta cita"
+                >
+                  Reagendar
+                </button>
+                <button
+                  v-if="puedesCancelar(r)"
+                  class="mr-cancel-btn"
+                  type="button"
+                  @click="abrirCancelar(r.id)"
+                  title="Cancelar esta cita"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -547,6 +712,56 @@ onMounted(async () => {
           </button>
           <button class="mr-modal-btn mr-modal-btn--danger" @click="confirmarCancelacionCliente" :disabled="cancelandoCita">
             {{ cancelandoCita ? 'Cancelando…' : 'Confirmar cancelación' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Reschedule cita modal ──────────────────────────────── -->
+    <div v-if="mostrandoReagendar" class="mr-modal-backdrop" @click.self="cerrarReagendar">
+      <div class="mr-modal-card mr-modal-card--wide">
+        <p class="mr-eyebrow" style="margin:0 0 4px">Reagendar cita</p>
+        <h3 class="mr-modal-title">Elige un nuevo horario</h3>
+        <p class="mr-modal-meta" v-if="citaReagendar">
+          Cita actual con <strong>{{ citaReagendar.abogadoNombre || 'abogado' }}</strong>
+          el <strong>{{ formatearDia(citaReagendar.fechaHoraCopia) }}</strong>
+          a las <strong>{{ formatearFecha(citaReagendar.fechaHoraCopia) }}</strong>.
+          Selecciona uno de los horarios libres del abogado en el calendario.
+        </p>
+        <div class="mr-reagendar-legend" aria-hidden="true">
+          <span class="mr-reagendar-legend-item">
+            <span class="mr-reagendar-legend-swatch mr-reagendar-legend-swatch--current"></span>
+            Horario actual
+          </span>
+          <span class="mr-reagendar-legend-item">
+            <span class="mr-reagendar-legend-swatch mr-reagendar-legend-swatch--available"></span>
+            Horarios disponibles
+          </span>
+        </div>
+
+        <div v-if="cargandoSlotsReagendar" class="mr-loading-grid">
+          <div class="mr-skel mr-skel--bar" v-for="n in 4" :key="n"></div>
+        </div>
+        <div v-else-if="slotsReagendarItems.length > 0" class="mr-reagendar-grid-wrap">
+          <WeeklyCalendarGrid
+            :items="slotsReagendarItems"
+            mode="select"
+            v-model="slotReagendarKey"
+          />
+        </div>
+
+        <div v-if="errorReagendar" class="mr-modal-error">{{ errorReagendar }}</div>
+
+        <div class="mr-modal-actions">
+          <button class="mr-modal-btn mr-modal-btn--ghost" @click="cerrarReagendar" :disabled="reagendandoCita">
+            Cancelar
+          </button>
+          <button
+            class="mr-modal-btn mr-modal-btn--primary"
+            @click="confirmarReagendamiento"
+            :disabled="reagendandoCita || cargandoSlotsReagendar || !slotReagendarKey"
+          >
+            {{ reagendandoCita ? 'Reagendando…' : 'Confirmar nuevo horario' }}
           </button>
         </div>
       </div>
@@ -1193,6 +1408,38 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.mr-cita-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mr-reagendar-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--hi);
+  border: 1px solid rgba(218, 182, 86, 0.55);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.mr-reagendar-btn:hover {
+  background: #f9e6a8;
+  border-color: var(--signal);
+}
+
+.mr-reagendar-btn:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
 .mr-cancel-btn {
   display: inline-flex;
   align-items: center;
@@ -1235,6 +1482,63 @@ onMounted(async () => {
   border-radius: var(--radius);
   padding: 1.25rem;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.mr-modal-card--wide {
+  width: min(880px, 96vw);
+}
+
+.mr-reagendar-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.mr-reagendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mr-reagendar-legend-swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  display: inline-block;
+}
+
+.mr-reagendar-legend-swatch--available {
+  background: var(--bs-primary-bg-subtle, #cfe2ff);
+  border-color: var(--bs-primary, #0d6efd);
+}
+
+.mr-reagendar-legend-swatch--current {
+  background: var(--bs-secondary-bg-subtle, #e2e3e5);
+  border-color: var(--bs-secondary, #6c757d);
+}
+
+.mr-reagendar-grid-wrap {
+  margin: 0.75rem 0 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  background: var(--paper);
+}
+
+.mr-modal-btn--primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.mr-modal-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.15);
 }
 
 .mr-modal-title {

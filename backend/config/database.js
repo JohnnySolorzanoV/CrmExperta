@@ -7,6 +7,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 dotenv.config({ path: resolve(__dirname, '..', '.env') })
 
+// Keep PostgreSQL TIMESTAMP (without timezone) as raw text.
+// We normalize explicitly in app code to avoid implicit local-time shifts.
+pg.types.setTypeParser(1114, (value) => value)
+
 export const DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
 
 export function crearConfigPool() {
@@ -14,7 +18,6 @@ export function crearConfigPool() {
   url.searchParams.delete('sslmode')
 
   var usaSsl = /ondigitalocean\.com/i.test(url.host)
-console.log("conectando a digital ocean")
   return {
     connectionString: url.toString(),
     ssl: usaSsl ? { rejectUnauthorized: false } : false
@@ -42,7 +45,16 @@ export async function probarConexion() {
     await connxion.query('SELECT 1')
     console.log('bd conectada ok')
   } catch (e) {
-    console.error('error conectando bd:', e.message)
+    var mensaje = e?.message || e?.code || 'Error desconocido de conexion'
+    console.error('error conectando bd:', mensaje)
+    if (Array.isArray(e?.errors) && e.errors.length > 0) {
+      for (var detalle of e.errors) {
+        console.error(
+          'detalle conexion:',
+          `${detalle?.code || 'ERR'} ${detalle?.address || ''}:${detalle?.port || ''}`.trim()
+        )
+      }
+    }
     throw e
   }
 }

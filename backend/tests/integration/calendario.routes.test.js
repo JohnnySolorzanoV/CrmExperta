@@ -33,4 +33,26 @@ describe('Integracion /api/calendario', () => {
     expect(r.status).toBe(200)
     expect(Array.isArray(r.body.disponibilidad)).toBe(true)
   })
+
+  it('GET /api/calendario/abogado/:id/disponibilidad serializa fechas en UTC ISO', async () => {
+    if (!dbLista) return
+    var r = await request(APP)
+      .get('/api/calendario/abogado/' + ids.abogadoUsuarioId + '/disponibilidad')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+
+    expect(r.status).toBe(200)
+    if (r.body.disponibilidad.length > 0) {
+      expect(r.body.disponibilidad[0].fechaEvento).toMatch(/Z$/)
+    }
+  })
+
+  it('GET /api/calendario/abogado/:id/disponibilidad admite id interno por compatibilidad', async () => {
+    if (!dbLista) return
+    var r = await request(APP)
+      .get('/api/calendario/abogado/' + ids.abogadoPkId + '/disponibilidad')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+
+    expect(r.status).toBe(200)
+    expect(Array.isArray(r.body.disponibilidad)).toBe(true)
+  })
 })

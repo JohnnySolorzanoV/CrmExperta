@@ -4,16 +4,24 @@ import { listarSlots, listarDisponibilidadAbogado, crearSlot, eliminarSlot } fro
 
 var router = Router()
 
-router.get('/abogado/:idAbogado', verificarToken, async (req, res, next) => {
+router.get('/abogado/:idUsuarioAbogado', verificarToken, async (req, res, next) => {
   try {
-    var SLOTS = await listarSlots(Number(req.params.idAbogado))
+    var idUsuarioAbogado = Number(req.params.idUsuarioAbogado)
+    if (!Number.isFinite(idUsuarioAbogado)) {
+      throw Object.assign(new Error('Parametro idUsuarioAbogado invalido'), { status: 400 })
+    }
+    var SLOTS = await listarSlots(idUsuarioAbogado)
     res.json({ slots: SLOTS })
   } catch (error) { next(error) }
 })
 
-router.get('/abogado/:idAbogado/disponibilidad', verificarToken, async (req, res, next) => {
+router.get('/abogado/:idUsuarioAbogado/disponibilidad', verificarToken, async (req, res, next) => {
   try {
-    var DISPONIBLES = await listarDisponibilidadAbogado(Number(req.params.idAbogado))
+    var idUsuarioAbogado = Number(req.params.idUsuarioAbogado)
+    if (!Number.isFinite(idUsuarioAbogado)) {
+      throw Object.assign(new Error('Parametro idUsuarioAbogado invalido'), { status: 400 })
+    }
+    var DISPONIBLES = await listarDisponibilidadAbogado(idUsuarioAbogado)
     res.json({ disponibilidad: DISPONIBLES })
   } catch (error) { next(error) }
 })

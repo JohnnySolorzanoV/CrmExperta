@@ -113,6 +113,7 @@ function isSelected(item) {
 
 function selectSlot(item) {
   if (props.mode !== 'select') return
+  if (item.variant === 'current') return
   emit('update:modelValue', String(item.id))
 }
 
@@ -217,10 +218,15 @@ onBeforeUnmount(() => {
                   v-for="item in cellItems(day, hour)"
                   :key="item.id"
                   class="wcg-slot-chip"
-                  :class="{ 'wcg-slot-selected': isSelected(item) }"
+                  :class="{
+                    'wcg-slot-selected': isSelected(item),
+                    'wcg-slot-current': item.variant === 'current',
+                  }"
+                  :disabled="item.variant === 'current'"
                   @click="selectSlot(item)"
-                  :title="item.descripcion || item.label"
+                  :title="item.variant === 'current' ? 'Horario actual de tu cita' : (item.descripcion || item.label)"
                 >
+                  <span v-if="item.variant === 'current'" class="wcg-slot-current-tag">Actual</span>
                   {{ item.label }}
                 </button>
               </template>
@@ -476,6 +482,31 @@ onBeforeUnmount(() => {
   background: var(--bs-primary) !important;
   color: #fff !important;
   border-color: var(--bs-primary);
+}
+
+.wcg-slot-current {
+  background: var(--bs-secondary-bg-subtle) !important;
+  color: var(--bs-secondary-color) !important;
+  border-color: var(--bs-secondary-border-subtle) !important;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  opacity: 0.85;
+}
+
+.wcg-slot-current-tag {
+  display: inline-block;
+  margin-right: 0.28rem;
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  background: var(--bs-secondary);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  vertical-align: middle;
 }
 
 .wcg-cita-card {

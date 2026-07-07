@@ -2,6 +2,12 @@
  * Shared calendar grid utilities.
  * All date work is done in local time to match the browser's locale display.
  */
+import { parseServerDate, toIsoUtc } from './datetime'
+
+// Working hours (start hours of 1-hour slots):
+//   Mornings   10:00 - 12:00  -> start hours 10, 11
+//   Afternoons 15:00 - 17:00  -> start hours 15, 16
+const HORAS_ATENCION = new Set([10, 11, 15, 16])
 
 /** Returns the Monday of the week containing `date`. */
 function getWeekStart(date) {
@@ -43,7 +49,8 @@ function isSameDay(a, b) {
  */
 export function getItemsForCell(items, day, hour) {
   return items.filter((item) => {
-    const d = new Date(item._datetime)
+    const d = parseServerDate(item._datetime)
+    if (!d) return false
     return isSameDay(d, day) && d.getHours() === hour
   })
 }
@@ -80,19 +87,20 @@ export function formatHour(hour) {
  * into normalised calendar items.
  */
 export function mapSlotsToCalendarItems(slots) {
-  const HORAS_ATENCION = new Set([9, 10, 15, 16])
   return (slots || [])
     .filter((slot) => {
-      const dt = new Date(slot.fechaEvento)
-      return HORAS_ATENCION.has(dt.getHours())
+      const dt = parseServerDate(slot.fechaEvento)
+      if (!dt) return false
+      const esDiaLaboral = dt.getDay() >= 1 && dt.getDay() <= 5
+      return esDiaLaboral && HORAS_ATENCION.has(dt.getHours())
     })
     .map((slot) => ({
       id: slot.id != null ? slot.id : slot.fechaEvento,
-      _datetime: slot.fechaEvento,
-      label: new Date(slot.fechaEvento).toLocaleTimeString('es-EC', {
+      _datetime: toIsoUtc(slot.fechaEvento) || slot.fechaEvento,
+      label: parseServerDate(slot.fechaEvento)?.toLocaleTimeString('es-EC', {
         hour: '2-digit',
         minute: '2-digit',
-      }),
+      }) || 'Sin hora',
       descripcion: slot.descripcion || '',
       type: 'slot',
     }))
@@ -106,7 +114,7 @@ export function mapSlotsToCalendarItems(slots) {
 export function mapCitasToCalendarItems(citas) {
   return (citas || []).map((cita) => ({
     id: cita.id,
-    _datetime: cita.fechaHoraCopia,
+    _datetime: toIsoUtc(cita.fechaHoraCopia) || cita.fechaHoraCopia,
     label: cita.clienteNombre || cita.abogadoNombre || 'Cita',
     status: cita.estadoCita || 'pendiente',
     motivo: cita.motivo || '',

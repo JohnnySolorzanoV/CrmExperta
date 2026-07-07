@@ -5,6 +5,7 @@ import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
 import { mapCitasToCalendarItems } from '../utils/calendarGrid'
 import { buildApiUrl } from '../utils/api'
+import { parseServerDate } from '../utils/datetime'
 
 const usuarioStore = useUsuarioStore()
 const router = useRouter()
@@ -54,7 +55,7 @@ const ESTADO_CITA_VARIANT = {
   confirmada: 'ok',
   cancelada: 'danger',
   completada: 'muted',
-  reprogramada: 'muted',
+  reprogramada: 'warn',
 }
 
 const formCaso = ref({
@@ -66,13 +67,18 @@ const formCaso = ref({
 // Maps the citas list into normalised items for the calendar grid
 const calendarItems = computed(() => mapCitasToCalendarItems(citas.value))
 
+function getMillis(fechaIso, fallback = Number.POSITIVE_INFINITY) {
+  const fecha = parseServerDate(fechaIso)
+  return fecha ? fecha.getTime() : fallback
+}
+
 const citasOrdenadas = computed(() =>
-  [...citas.value].sort((a, b) => new Date(a.fechaHoraCopia) - new Date(b.fechaHoraCopia))
+  [...citas.value].sort((a, b) => getMillis(a.fechaHoraCopia) - getMillis(b.fechaHoraCopia))
 )
 
 const proximaCita = computed(() => {
   const ahora = Date.now()
-  return citasOrdenadas.value.find((cita) => new Date(cita.fechaHoraCopia).getTime() > ahora) || null
+  return citasOrdenadas.value.find((cita) => getMillis(cita.fechaHoraCopia) > ahora) || null
 })
 
 const citasPendientesConfirmacion = computed(
@@ -102,19 +108,23 @@ function authHeaders() {
 
 function formatearDia(fechaIso) {
   if (!fechaIso) return 'Sin día'
+  const fecha = parseServerDate(fechaIso)
+  if (!fecha) return 'Sin día'
   return new Intl.DateTimeFormat('es-EC', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
-  }).format(new Date(fechaIso))
+  }).format(fecha)
 }
 
 function formatearHora(fechaIso) {
   if (!fechaIso) return 'Sin hora'
+  const fecha = parseServerDate(fechaIso)
+  if (!fecha) return 'Sin hora'
   return new Intl.DateTimeFormat('es-EC', {
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(fechaIso))
+  }).format(fecha)
 }
 
 async function fetchDatos() {

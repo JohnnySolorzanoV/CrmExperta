@@ -7,8 +7,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node seed.js",
-    "test:unit": "NODE_ENV=test vitest run",
-    "test:integration": "NODE_ENV=test vitest run tests/integration"
+    "test:unit": "cross-env NODE_ENV=test vitest run",
+    "test:integration": "cross-env NODE_ENV=test vitest run tests/integration"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -16,10 +16,12 @@
     "dotenv": "^16.4.7",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
     "pg": "^8.21.0"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "supertest": "^7.1.4",
     "vitest": "^3.2.4"
   }

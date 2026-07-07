@@ -53,6 +53,11 @@ export function useChatbotConversation() {
     await store.enviarMensaje('agendar cita')
   }
 
+  function reservarOtra() {
+    store.resetConversacion()
+    mensajeInput.value = ''
+  }
+
   return {
     mensajeInput,
     mensajes,
@@ -63,5 +68,6 @@ export function useChatbotConversation() {
     textoBotVisible,
     enviar,
     agendarRapido,
+    reservarOtra,
   }
 }

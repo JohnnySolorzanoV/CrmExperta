@@ -1,5 +1,6 @@
 import { ejecutarConsulta as query } from '../../config/database.js'
 import { Cita } from '../../entidades/cita.js'
+import { normalizarFechaIsoUTC } from '../../config/datetime.js'
 
 var SQL_COLS = `id, id_cliente as "idCliente", id_abogado as "idAbogado",
                 fecha_hora_copia as "fechaHoraCopia", id_calendario as "idCalendario",
@@ -8,15 +9,23 @@ var SQL_COLS = `id, id_cliente as "idCliente", id_abogado as "idAbogado",
                 motivo_cancelacion as "motivoCancelacion", cancelado_por as "canceladoPor"`
 var SQL_CT = `SELECT ${SQL_COLS}`
 
+function normalizarFilaCita(row) {
+  return {
+    ...row,
+    fechaHoraCopia: normalizarFechaIsoUTC(row.fechaHoraCopia),
+    createdAt: normalizarFechaIsoUTC(row.createdAt),
+  }
+}
+
 export async function obtenerTodas() {
   var r = await query(`${SQL_CT} FROM Cita ORDER BY fecha_hora_copia`)
-  return r.rows.map(row => new Cita(row))
+  return r.rows.map(row => new Cita(normalizarFilaCita(row)))
 }
 
 export async function buscarPorId(id) {
   var r = await query(`${SQL_CT} FROM Cita WHERE id = $1`, [id])
   if (r.rows.length === 0) return null
-  return new Cita(r.rows[0])
+  return new Cita(normalizarFilaCita(r.rows[0]))
 }
 
 export async function buscarPorCliente(idC) {
@@ -42,7 +51,7 @@ export async function buscarPorCliente(idC) {
      ORDER BY c.fecha_hora_copia`,
     [idC]
   )
-  return r.rows.map(row => new Cita(row))
+  return r.rows.map(row => new Cita(normalizarFilaCita(row)))
 }
 
 export async function buscarPorAbogado(idA) {
@@ -68,7 +77,7 @@ export async function buscarPorAbogado(idA) {
      ORDER BY c.fecha_hora_copia`,
     [idA]
   )
-  return r.rows.map(row => new Cita(row))
+  return r.rows.map(row => new Cita(normalizarFilaCita(row)))
 }
 
 export async function slotOcupado(idCal) {
@@ -98,7 +107,7 @@ export async function crear(cita) {
     [cita.idCliente, cita.idAbogado, cita.fechaHoraCopia, cita.idCalendario,
      cita.motivo, cita.estadoCita, cita.resumenChatbot]
   )
-  return new Cita(r.rows[0])
+  return new Cita(normalizarFilaCita(r.rows[0]))
 }
 
 export async function actualizarEstado(id, estado) {
@@ -107,7 +116,7 @@ export async function actualizarEstado(id, estado) {
     [estado, id]
   )
   if (r.rows.length === 0) return null
-  return new Cita(r.rows[0])
+  return new Cita(normalizarFilaCita(r.rows[0]))
 }
 
 /** Sets estado_cita = 'cancelada' together with the cancellation audit fields. */
@@ -120,7 +129,7 @@ export async function cancelarConMotivo(id, motivoCancelacion, canceladoPor) {
     [id, motivoCancelacion || null, canceladoPor || null]
   )
   if (r.rows.length === 0) return null
-  return new Cita(r.rows[0])
+  return new Cita(normalizarFilaCita(r.rows[0]))
 }
 
 /** Stores the Google Calendar event ID after it has been created asynchronously. */
@@ -130,12 +139,12 @@ export async function actualizarGoogleEventId(id, googleEventId) {
 
 export async function actualizarFecha(id, fechaHoraCopia, idCalendario) {
   var r = await query(
-    `UPDATE Cita SET fecha_hora_copia = $1, id_calendario = $2, estado_cita = 'reprogramada'
+    `UPDATE Cita SET fecha_hora_copia = $1, id_calendario = $2, estado_cita = 'reprogramada', recordatorio_enviado = FALSE
      WHERE id = $3 RETURNING ${SQL_COLS}`,
     [fechaHoraCopia, idCalendario, id]
   )
   if (r.rows.length === 0) return null
-  return new Cita(r.rows[0])
+  return new Cita(normalizarFilaCita(r.rows[0]))
 }
 
 export async function eliminar(id) {

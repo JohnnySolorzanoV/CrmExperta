@@ -13,9 +13,17 @@ const cargando = ref(false)
 const error = ref('')
 const actualizandoEstado = ref(false)
 const estadoSeleccionado = ref('abierto')
+const guardandoNotas = ref(false)
+const errorNotas = ref('')
+const mensajeNotas = ref('')
+const formNotas = ref({
+  notas: '',
+  conclusiones: ''
+})
 const subiendoDocumento = ref(false)
 const errorDocumento = ref('')
 const mensajeDocumento = ref('')
+const archivoSeleccionado = ref(null)
 const formDocumento = ref({
   nombreDocumento: '',
   descripcion: '',
@@ -68,6 +76,8 @@ async function cargarCaso() {
 
     caso.value = casoData?.caso || null
     estadoSeleccionado.value = caso.value?.estadoCaso || 'abierto'
+    formNotas.value.notas = caso.value?.notas || ''
+    formNotas.value.conclusiones = caso.value?.conclusiones || ''
     documentos.value = docsData?.documentos || []
   } catch (e) {
     error.value = e.message
@@ -76,8 +86,39 @@ async function cargarCaso() {
   }
 }
 
+async function guardarNotasConclusiones() {
+  if (!caso.value) return
+  guardandoNotas.value = true
+  errorNotas.value = ''
+  mensajeNotas.value = ''
+  try {
+    const response = await fetch(buildApiUrl(`/casos/${caso.value.id}/notas-conclusiones`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders()
+      },
+      body: JSON.stringify({
+        notas: formNotas.value.notas,
+        conclusiones: formNotas.value.conclusiones
+      })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data?.error || data?.mensaje || 'No se pudieron guardar las notas.')
+    caso.value = data?.caso || caso.value
+    formNotas.value.notas = caso.value?.notas || ''
+    formNotas.value.conclusiones = caso.value?.conclusiones || ''
+    mensajeNotas.value = 'Notas y conclusiones guardadas correctamente.'
+  } catch (e) {
+    errorNotas.value = e.message
+  } finally {
+    guardandoNotas.value = false
+  }
+}
+
 function onArchivoSeleccionado(event) {
   const archivo = event.target.files?.[0]
+  archivoSeleccionado.value = archivo || null
   if (!archivo) return
   const partes = archivo.name.split('.')
   const ext = partes.length > 1 ? partes.pop() : ''
@@ -121,31 +162,58 @@ async function subirDocumentoCaso() {
 
   subiendoDocumento.value = true
   try {
-    const payload = {
-      idCaso: caso.value.id,
-      nombreDocumento: formDocumento.value.nombreDocumento,
-      descripcion: formDocumento.value.descripcion,
-      extension: formDocumento.value.extension,
-      tamaño: formDocumento.value.tamaño
+    const payload = new FormData()
+    payload.append('idCaso', String(caso.value.id))
+    payload.append('nombreDocumento', formDocumento.value.nombreDocumento)
+    payload.append('descripcion', formDocumento.value.descripcion || '')
+    payload.append('extension', formDocumento.value.extension)
+    payload.append('tamaño', String(formDocumento.value.tamaño || 0))
+    if (archivoSeleccionado.value) {
+      payload.append('archivo', archivoSeleccionado.value)
     }
     const response = await fetch(buildApiUrl('/documentos'), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         ...authHeaders()
       },
-      body: JSON.stringify(payload)
+      body: payload
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data?.error || data?.mensaje || 'No se pudo subir el documento.')
 
     mensajeDocumento.value = 'Documento subido correctamente.'
     formDocumento.value = { nombreDocumento: '', descripcion: '', extension: '', tamaño: 0 }
+    archivoSeleccionado.value = null
     await cargarCaso()
   } catch (e) {
     errorDocumento.value = e.message
   } finally {
     subiendoDocumento.value = false
+  }
+}
+
+async function descargarDocumento(doc) {
+  if (!doc?.id) return
+  try {
+    const response = await fetch(buildApiUrl(`/documentos/${doc.id}/descargar`), {
+      headers: authHeaders()
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      throw new Error(data?.error || data?.mensaje || 'No se pudo descargar el documento.')
+    }
+    const blob = await response.blob()
+    if (!blob.size) throw new Error('El archivo descargado está vacío.')
+    const enlace = document.createElement('a')
+    const objectUrl = URL.createObjectURL(blob)
+    enlace.href = objectUrl
+    enlace.download = nombreDescarga(doc)
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    URL.revokeObjectURL(objectUrl)
+  } catch (e) {
+    errorDocumento.value = e.message
   }
 }
 
@@ -211,6 +279,46 @@ onMounted(cargarCaso)
               <p class="cd-meta-value">{{ caso.clienteNombre || 'No disponible' }}</p>
             </div>
           </div>
+
+          <div class="cd-section-head cd-section-head--inner">
+            <h3 class="cd-section-title">Notas y conclusiones</h3>
+          </div>
+          <div class="cd-form-group">
+            <label class="cd-form-label" for="caso-notas">Notas del caso</label>
+            <textarea
+              id="caso-notas"
+              v-model="formNotas.notas"
+              class="cd-input cd-textarea"
+              placeholder="Registra avances, observaciones y próximos pasos."
+              rows="4"
+            />
+          </div>
+          <div class="cd-form-group">
+            <label class="cd-form-label" for="caso-conclusiones">Conclusiones</label>
+            <textarea
+              id="caso-conclusiones"
+              v-model="formNotas.conclusiones"
+              class="cd-input cd-textarea"
+              placeholder="Resumen final, estrategia acordada o cierre del caso."
+              rows="4"
+            />
+          </div>
+          <div v-if="errorNotas" class="cd-error-bar cd-error-bar--inline" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ errorNotas }}
+          </div>
+          <div v-if="mensajeNotas" class="cd-success-bar" role="status">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            {{ mensajeNotas }}
+          </div>
+          <button
+            class="cd-action-btn"
+            :class="{ 'cd-action-btn--busy': guardandoNotas }"
+            @click="guardarNotasConclusiones"
+            :disabled="guardandoNotas"
+          >
+            {{ guardandoNotas ? 'Guardando…' : 'Guardar notas y conclusiones' }}
+          </button>
         </section>
 
         <div class="cd-actions-col">
@@ -313,16 +421,14 @@ onMounted(cargarCaso)
                   </div>
                   <div class="cd-doc-actions">
                     <p class="cd-doc-date">{{ formatearFecha(d.fechaSubida) }}</p>
-                    <a
+                    <button
                       v-if="d.rutaArchivo"
                       class="cd-download-btn"
-                      :href="d.rutaArchivo"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      :download="nombreDescarga(d)"
+                      type="button"
+                      @click="descargarDocumento(d)"
                     >
                       Descargar archivo
-                    </a>
+                    </button>
                     <button v-else class="cd-download-btn cd-download-btn--disabled" disabled>
                       Sin archivo disponible
                     </button>
@@ -601,6 +707,10 @@ onMounted(cargarCaso)
   margin-bottom: 0.8rem;
 }
 
+.cd-section-head--inner {
+  margin-top: 1rem;
+}
+
 .cd-section-title {
   margin: 0;
   font-size: 0.98rem;
@@ -666,6 +776,11 @@ onMounted(cargarCaso)
   border-radius: calc(var(--radius) - 3px);
   transition: border-color 0.16s, box-shadow 0.16s;
   appearance: none;
+}
+
+.cd-textarea {
+  resize: vertical;
+  min-height: 6rem;
 }
 
 .cd-select {

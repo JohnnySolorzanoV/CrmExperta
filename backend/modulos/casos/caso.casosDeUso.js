@@ -42,7 +42,13 @@ async function resolverAbogadoPk(idAbogado) {
   return null
 }
 
-export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, idCliente, idAbogado }) {
+function normalizarTextoOpcional(valor) {
+  if (valor === undefined || valor === null) return ''
+  if (typeof valor !== 'string') throw Object.assign(new Error('Notas y conclusiones deben ser texto'), { status: 400 })
+  return valor.trim()
+}
+
+export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, conclusiones, idCliente, idAbogado }) {
   if (!tipoCaso || !nombreCaso || !idCliente || !idAbogado) {
     throw Object.assign(new Error('Faltan datos del caso'), { status: 400 })
   }
@@ -55,7 +61,12 @@ export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, idCliente, i
 
   var CASO_NUEVO = new Caso({
     estadoCaso: estadoCaso || 'abierto',
-    tipoCaso, nombreCaso, idCliente: pkCliente, idAbogado: pkAbogado
+    tipoCaso,
+    nombreCaso,
+    notas: normalizarTextoOpcional(notas),
+    conclusiones: normalizarTextoOpcional(conclusiones),
+    idCliente: pkCliente,
+    idAbogado: pkAbogado
   })
 
   console.log('creando caso:', nombreCaso)
@@ -69,6 +80,14 @@ export async function actualizarEstadoCaso(id, estado) {
   }
 
   var actualizado = await casoRepo.actualizarEstado(id, estado)
+  if (!actualizado) throw Object.assign(new Error('Caso no encontrado'), { status: 404 })
+  return actualizado
+}
+
+export async function actualizarNotasConclusionesCaso(id, { notas, conclusiones }) {
+  var notasNormalizadas = normalizarTextoOpcional(notas)
+  var conclusionesNormalizadas = normalizarTextoOpcional(conclusiones)
+  var actualizado = await casoRepo.actualizarNotasConclusiones(id, notasNormalizadas, conclusionesNormalizadas)
   if (!actualizado) throw Object.assign(new Error('Caso no encontrado'), { status: 404 })
   return actualizado
 }

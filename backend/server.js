@@ -1,6 +1,8 @@
 import express from 'express'
 import { default as corsMod } from 'cors'
 import { config as envConfig } from 'dotenv'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { probarConexion } from './config/database.js'
 import { manejoDeErrores } from './config/manejoDeErrores.js'
 import authRutas from './modulos/auth/auth.rutas.js'
@@ -12,6 +14,7 @@ import citaRutas from './modulos/citas/cita.rutas.js'
 import casoRutas from './modulos/casos/caso.rutas.js'
 import documentoRutas from './modulos/documentos/documento.rutas.js'
 import chatbotRutas from './modulos/chatbot/chatbot.rutas.js'
+import { iniciarSchedulerRecordatorios } from './modulos/citas/cita.recordatorios.js'
 
 envConfig()
 
@@ -21,6 +24,9 @@ var API_PREFIX = normalizarPrefijoApi(process.env.API_PREFIX)
 
 APP.use(corsMod())
 APP.use(express.json())
+var __filename = fileURLToPath(import.meta.url)
+var __dirname = path.dirname(__filename)
+APP.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 var MODULOS_ACTIVOS = [
   { ruta: '/auth', handler: authRutas },
@@ -43,6 +49,7 @@ APP.use(manejoDeErrores)
 export async function iniciarServidor() {
   try {
     await probarConexion()
+    iniciarSchedulerRecordatorios()
     APP.listen(PUERTO, () => {
       console.log('Servidor corriendo en ' + PUERTO)
     })

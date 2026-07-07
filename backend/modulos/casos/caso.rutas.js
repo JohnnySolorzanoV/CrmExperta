@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
 import {
   listarCasos, obtenerCaso, listarCasosCliente, listarCasosAbogado,
-  crearCaso, actualizarEstadoCaso
+  crearCaso, actualizarEstadoCaso, actualizarNotasConclusionesCaso
 } from './caso.casosDeUso.js'
 
 var router = Router()
@@ -47,6 +47,14 @@ router.put('/:id/estado', verificarToken, verificarRol('abogado', 'administrador
     var { estado } = req.body
     var c = await actualizarEstadoCaso(Number(req.params.id), estado)
     res.json({ mensaje: 'Estado actualizado', caso: c })
+  } catch (error) { next(error) }
+})
+
+router.put('/:id/notas-conclusiones', verificarToken, verificarRol('abogado', 'administrador'), async (req, res, next) => {
+  try {
+    var { notas, conclusiones } = req.body
+    var c = await actualizarNotasConclusionesCaso(Number(req.params.id), { notas, conclusiones })
+    res.json({ mensaje: 'Notas y conclusiones actualizadas', caso: c })
   } catch (error) { next(error) }
 })
 

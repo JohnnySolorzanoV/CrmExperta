@@ -3,6 +3,7 @@ import { Caso } from '../../entidades/caso.js'
 
 var SQL_CAMPOS = `id, estado_caso as "estadoCaso", fecha_apertura as "fechaApertura",
                   tipo_caso as "tipoCaso", nombre_caso as "nombreCaso",
+                  notas, conclusiones,
                   id_cliente as "idCliente", id_abogado as "idAbogado"`
 
 export async function obtenerTodos() {
@@ -18,6 +19,8 @@ export async function buscarPorId(id) {
       c.fecha_apertura as "fechaApertura",
       c.tipo_caso as "tipoCaso",
       c.nombre_caso as "nombreCaso",
+      c.notas,
+      c.conclusiones,
       c.id_cliente as "idCliente",
       c.id_abogado as "idAbogado",
       uc.nombre as "clienteNombre",
@@ -46,9 +49,9 @@ export async function buscarPorAbogado(idA) {
 
 export async function crear(caso) {
   var r = await ejecutarConsulta(
-    `INSERT INTO Caso (estado_caso, tipo_caso, nombre_caso, id_cliente, id_abogado)
-     VALUES ($1, $2, $3, $4, $5) RETURNING ${SQL_CAMPOS}`,
-    [caso.estadoCaso, caso.tipoCaso, caso.nombreCaso, caso.idCliente, caso.idAbogado]
+    `INSERT INTO Caso (estado_caso, tipo_caso, nombre_caso, notas, conclusiones, id_cliente, id_abogado)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${SQL_CAMPOS}`,
+    [caso.estadoCaso, caso.tipoCaso, caso.nombreCaso, caso.notas, caso.conclusiones, caso.idCliente, caso.idAbogado]
   )
   return new Caso(r.rows[0])
 }
@@ -57,6 +60,18 @@ export async function actualizarEstado(id, estado) {
   var r = await ejecutarConsulta(
     `UPDATE Caso SET estado_caso = $1 WHERE id = $2 RETURNING ${SQL_CAMPOS}`,
     [estado, id]
+  )
+  if (r.rows.length === 0) return null
+  return new Caso(r.rows[0])
+}
+
+export async function actualizarNotasConclusiones(id, notas, conclusiones) {
+  var r = await ejecutarConsulta(
+    `UPDATE Caso
+     SET notas = $1, conclusiones = $2
+     WHERE id = $3
+     RETURNING ${SQL_CAMPOS}`,
+    [notas, conclusiones, id]
   )
   if (r.rows.length === 0) return null
   return new Caso(r.rows[0])

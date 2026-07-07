@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useUsuarioStore } from './usuariostore';
 import { buildApiUrl } from '../utils/api';
+import { parseServerDate, toIsoUtc } from '../utils/datetime';
 
 export const useChatbotStore = defineStore('chatbot', () => {
     const mensajes = ref([]);
@@ -40,6 +41,10 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
     async function agendarDesdeChat(datosAgendar, fechaHoraCopia, idAbogado, idCalendario) {
         asegurarSesionActiva();
+        const fechaCanonica = toIsoUtc(fechaHoraCopia);
+        if (!fechaCanonica) {
+            throw new Error('La fecha seleccionada no tiene un formato valido.');
+        }
         const response = await fetch(buildApiUrl('/chatbot/agendar'), {
             method: "POST",
             body: JSON.stringify({
@@ -49,7 +54,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
                 resumen: datosAgendar.resumen,
                 tipoConsulta: datosAgendar.tipoConsulta,
                 motivo: datosAgendar.motivo,
-                fechaHoraCopia
+                fechaHoraCopia: fechaCanonica
             }),
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${usuarioStore.token}` }
         });
@@ -183,7 +188,8 @@ export const useChatbotStore = defineStore('chatbot', () => {
         pendienteAgendar.value = null;
         disponibilidadAbogado.value = [];
 
-        const textoAgenda = `Tu cita fue agendada correctamente para el ${new Date(agendaResult.cita.fechaHoraCopia).toLocaleString()}.`;
+        const fechaAgendada = parseServerDate(agendaResult.cita?.fechaHoraCopia);
+        const textoAgenda = `Tu cita fue agendada correctamente para el ${fechaAgendada ? fechaAgendada.toLocaleString() : 'horario seleccionado'}.`;
         mensajes.value.push({ role: "bot", content: { respuesta: textoAgenda } });
         return agendaResult;
     }
@@ -193,6 +199,14 @@ export const useChatbotStore = defineStore('chatbot', () => {
         disponibilidadAbogado.value = [];
     }
 
+    function resetConversacion() {
+        mensajes.value = [];
+        error.value = null;
+        cargando.value = false;
+        pendienteAgendar.value = null;
+        disponibilidadAbogado.value = [];
+        ultimaCita.value = null;
+    }
 
     return {
         mensajes,
@@ -205,6 +219,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
         enviarMensaje,
         confirmarAgendamiento,
         limpiarPendienteAgendar,
+        resetConversacion,
         cargarAbogadosDisponibles,
         cargarDisponibilidadAbogado
     };

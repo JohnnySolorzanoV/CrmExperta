@@ -20,7 +20,9 @@ var pool = new pg.Pool({
 var disponibilidadCache = null
 
 function tablaSeguro(nombre) {
-  return '"' + nombre + '"'
+  // Avoid quoted identifiers so Postgres resolves names case-insensitively
+  // (e.g. Usuario -> usuario), matching how init.sql creates tables.
+  return nombre
 }
 
 export async function resetearBasePruebas() {

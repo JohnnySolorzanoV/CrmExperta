@@ -2,6 +2,7 @@ import * as ctaRepo from './cita.repositorio.js'
 import { Cita } from '../../entidades/cita.js'
 import { ejecutarConsulta } from '../../config/database.js'
 import { enviarEmail } from '../../config/google.js'
+import { normalizarFechaIsoUTC } from '../../config/datetime.js'
 
 // ─── Notification helpers ────────────────────────────────────────────────────
 
@@ -150,13 +151,19 @@ export var obtenerCita = async (id) => {
 }
 
 export var listarCitasCliente = async (idUsuario) => {
-  var r = await ejecutarConsulta('SELECT id FROM Cliente WHERE id_usuario = $1', [idUsuario])
+  var r = await ejecutarConsulta(
+    'SELECT id FROM Cliente WHERE id_usuario = $1 OR id = $1 ORDER BY (id_usuario = $1) DESC LIMIT 1',
+    [idUsuario]
+  )
   if (r.rows.length === 0) throw Object.assign(new Error('Cliente no encontrado'), { status: 404 })
   return ctaRepo.buscarPorCliente(r.rows[0].id)
 }
 
 export var listarCitasAbogado = async (idUsuario) => {
-  var r = await ejecutarConsulta('SELECT id FROM Abogado WHERE id_usuario = $1', [idUsuario])
+  var r = await ejecutarConsulta(
+    'SELECT id FROM Abogado WHERE id_usuario = $1 OR id = $1 ORDER BY (id_usuario = $1) DESC LIMIT 1',
+    [idUsuario]
+  )
   if (r.rows.length === 0) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
   return ctaRepo.buscarPorAbogado(r.rows[0].id)
 }
@@ -170,6 +177,11 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
     throw Object.assign(new Error('Debes asignar un abogado para crear la cita'), { status: 400 })
   }
 
+  var fechaCanonica = normalizarFechaIsoUTC(fechaHoraCopia)
+  if (!fechaCanonica) {
+    throw Object.assign(new Error('La fecha de la cita no tiene un formato valido.'), { status: 400 })
+  }
+
   var rCliente = await ejecutarConsulta('SELECT id FROM Cliente WHERE id_usuario = $1', [idCliente])
   if (rCliente.rows.length === 0) throw Object.assign(new Error('Cliente no encontrado'), { status: 404 })
   var pkCliente = rCliente.rows[0].id
@@ -178,7 +190,7 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
   if (rAbogado.rows.length === 0) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
   var pkAbogado = rAbogado.rows[0].id
 
-  var conflictoHora = await ctaRepo.existeConflictoAbogado(pkAbogado, fechaHoraCopia)
+  var conflictoHora = await ctaRepo.existeConflictoAbogado(pkAbogado, fechaCanonica)
   if (conflictoHora) throw Object.assign(new Error('Este abogado ya tiene una cita en esa hora'), { status: 409 })
 
   if (idCalendario) {
@@ -189,13 +201,13 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
   if (!idCalendario) {
     var slotCreado = await ejecutarConsulta(
       `INSERT INTO Calendario (id_abogado, fecha_evento, descripcion) VALUES ($1, $2, $3) RETURNING id`,
-      [pkAbogado, fechaHoraCopia, 'Cita agendada: ' + (motivo || '')]
+      [pkAbogado, fechaCanonica, 'Cita agendada: ' + (motivo || '')]
     )
     idCalendario = slotCreado.rows[0].id
   }
 
   var cita_nueva = new Cita({
-    idCliente: pkCliente, idAbogado: pkAbogado, fechaHoraCopia, idCalendario,
+    idCliente: pkCliente, idAbogado: pkAbogado, fechaHoraCopia: fechaCanonica, idCalendario,
     motivo, estadoCita: 'pendiente', resumenChatbot
   })
 
@@ -248,7 +260,12 @@ export async function reprogramarCita(id, fechaHoraCopia, idCalendario) {
   var existe = await ctaRepo.buscarPorId(id)
   if (!existe) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
 
-  var conflictoHora = await ctaRepo.existeConflictoAbogado(existe.idAbogado, fechaHoraCopia, id)
+  var fechaCanonica = normalizarFechaIsoUTC(fechaHoraCopia)
+  if (!fechaCanonica) {
+    throw Object.assign(new Error('La nueva fecha de la cita no tiene un formato valido.'), { status: 400 })
+  }
+
+  var conflictoHora = await ctaRepo.existeConflictoAbogado(existe.idAbogado, fechaCanonica, id)
   if (conflictoHora) throw Object.assign(new Error('El abogado ya tiene una cita en ese nuevo horario'), { status: 409 })
 
   if (idCalendario) {
@@ -263,14 +280,14 @@ export async function reprogramarCita(id, fechaHoraCopia, idCalendario) {
     var pkAbogado = r.rows[0].id_abogado
     var slotCreado = await ejecutarConsulta(
       `INSERT INTO Calendario (id_abogado, fecha_evento, descripcion) VALUES ($1, $2, $3) RETURNING id`,
-      [pkAbogado, fechaHoraCopia, 'Cita reprogramada']
+      [pkAbogado, fechaCanonica, 'Cita reprogramada']
     )
     idCalendario = slotCreado.rows[0].id
   }
 
-  var citaActualizada = await ctaRepo.actualizarFecha(id, fechaHoraCopia, idCalendario)
+  var citaActualizada = await ctaRepo.actualizarFecha(id, fechaCanonica, idCalendario)
 
-  notificarReprogramacion(citaActualizada, fechaHoraCopia).catch(e => {
+  notificarReprogramacion(citaActualizada, fechaCanonica).catch(e => {
     console.error('[Notificaciones] reprogramarCita id=' + id + ':', e.message)
   })
 

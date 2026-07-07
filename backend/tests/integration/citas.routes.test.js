@@ -78,4 +78,48 @@ describe('Integracion /api/citas', () => {
     expect(r.status).toBe(401)
     expect(r.body.error).toBe('Token requerido')
   })
+
+  it('GET /api/citas/cliente/:idUsuario devuelve fechas en ISO UTC', async () => {
+    if (!dbLista) return
+    await request(APP)
+      .post('/api/citas')
+      .set('Authorization', 'Bearer ' + tokenCliente)
+      .send({
+        idCliente: baseIds.clienteUsuarioId,
+        idAbogado: baseIds.abogadoUsuarioId,
+        fechaHoraCopia: '2026-08-01T10:15:00',
+        motivo: 'Consulta UTC',
+      })
+      .expect(201)
+
+    var r = await request(APP)
+      .get('/api/citas/cliente/' + baseIds.clienteUsuarioId)
+      .set('Authorization', 'Bearer ' + tokenCliente)
+
+    expect(r.status).toBe(200)
+    expect(r.body.citas.length).toBeGreaterThan(0)
+    expect(r.body.citas[0].fechaHoraCopia).toMatch(/Z$/)
+  })
+
+  it('GET /api/citas/cliente/:idUsuario admite id interno por compatibilidad', async () => {
+    if (!dbLista) return
+    await request(APP)
+      .post('/api/citas')
+      .set('Authorization', 'Bearer ' + tokenCliente)
+      .send({
+        idCliente: baseIds.clienteUsuarioId,
+        idAbogado: baseIds.abogadoUsuarioId,
+        fechaHoraCopia: '2026-08-01T10:15:00.000Z',
+        motivo: 'Compatibilidad',
+      })
+      .expect(201)
+
+    var r = await request(APP)
+      .get('/api/citas/cliente/' + baseIds.clientePkId)
+      .set('Authorization', 'Bearer ' + tokenCliente)
+
+    expect(r.status).toBe(200)
+    expect(Array.isArray(r.body.citas)).toBe(true)
+    expect(r.body.citas.length).toBeGreaterThan(0)
+  })
 })

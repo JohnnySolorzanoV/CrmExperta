@@ -44,7 +44,11 @@ onMounted(async () => {
 })
 
 function verMisReservas() {
-  router.push('/mis-reservas')
+  router.push({ path: '/mis-reservas', query: { fromBooking: Date.now().toString() } })
+}
+
+function reservarNuevaCita() {
+  chatbotStore.resetConversacion()
 }
 
 // ── Auto-scroll ──────────────────────────────────────────────────────────────
@@ -334,9 +338,12 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Post-booking CTA — also inside scroll area -->
-            <div v-if="ultimaCita" class="mt-3">
+            <div v-if="ultimaCita" class="mt-3 d-grid gap-2">
               <button type="button" class="btn btn-primary w-100" @click="verMisReservas">
                 Ver todas mis reservas
+              </button>
+              <button type="button" class="btn btn-secondary w-100" @click="reservarNuevaCita">
+                Reservar otra cita
               </button>
             </div>
           </div>

@@ -32,6 +32,31 @@ function nombreDescarga(doc) {
   return base.toLowerCase().endsWith(`.${ext.toLowerCase()}`) ? base : `${base}.${ext}`
 }
 
+async function descargarDocumento(doc) {
+  if (!doc?.id) return
+  try {
+    const response = await fetch(buildApiUrl(`/documentos/${doc.id}/descargar`), {
+      headers: authHeaders()
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      throw new Error(data?.error || data?.mensaje || 'No se pudo descargar el documento.')
+    }
+    const blob = await response.blob()
+    if (!blob.size) throw new Error('El archivo descargado está vacío.')
+    const enlace = document.createElement('a')
+    const objectUrl = URL.createObjectURL(blob)
+    enlace.href = objectUrl
+    enlace.download = nombreDescarga(doc)
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    URL.revokeObjectURL(objectUrl)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
 async function cargarCaso() {
   if (!usuarioStore.token) {
     error.value = 'Debes iniciar sesión para ver el caso.'
@@ -122,6 +147,22 @@ onMounted(cargarCaso)
               <p class="cd-meta-value">{{ caso.abogadoNombre || 'No disponible' }}</p>
             </div>
           </div>
+
+          <div class="cd-section-head cd-section-head--inner">
+            <h3 class="cd-section-title">Notas y conclusiones</h3>
+          </div>
+          <div class="cd-meta-item cd-notes-block">
+            <p class="cd-meta-label">Notas del caso</p>
+            <p class="cd-meta-value cd-notes-text">
+              {{ caso.notas || 'Tu abogado aún no ha registrado notas para este expediente.' }}
+            </p>
+          </div>
+          <div class="cd-meta-item cd-notes-block">
+            <p class="cd-meta-label">Conclusiones</p>
+            <p class="cd-meta-value cd-notes-text">
+              {{ caso.conclusiones || 'Todavía no hay conclusiones registradas.' }}
+            </p>
+          </div>
         </section>
 
         <section class="cd-panel">
@@ -148,16 +189,14 @@ onMounted(cargarCaso)
 
                 <div class="cd-doc-actions">
                   <p class="cd-doc-date">{{ formatearFecha(d.fechaSubida) }}</p>
-                  <a
+                  <button
                     v-if="d.rutaArchivo"
                     class="cd-download-btn"
-                    :href="d.rutaArchivo"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    :download="nombreDescarga(d)"
+                    type="button"
+                    @click="descargarDocumento(d)"
                   >
                     Descargar archivo
-                  </a>
+                  </button>
                   <button v-else class="cd-download-btn cd-download-btn--disabled" disabled>
                     Sin archivo disponible
                   </button>
@@ -372,6 +411,18 @@ onMounted(cargarCaso)
   background: #fbfcff;
 }
 
+.cd-notes-block {
+  margin-bottom: 0.75rem;
+}
+
+.cd-notes-block:last-of-type {
+  margin-bottom: 0;
+}
+
+.cd-notes-text {
+  white-space: pre-wrap;
+}
+
 .cd-meta-label {
   margin: 0 0 0.2rem;
   font-size: 0.66rem;
@@ -393,6 +444,10 @@ onMounted(cargarCaso)
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.8rem;
+}
+
+.cd-section-head--inner {
+  margin-top: 1rem;
 }
 
 .cd-section-title {

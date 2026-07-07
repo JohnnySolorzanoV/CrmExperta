@@ -14,16 +14,24 @@ router.get('/', verificarToken, verificarRol('administrador'), async (req, res, 
   } catch (error) { next(error) }
 })
 
-router.get('/cliente/:idCliente', verificarToken, async (req, res, next) => {
+router.get('/cliente/:idUsuarioCliente', verificarToken, async (req, res, next) => {
   try {
-    var CITAS = await listarCitasCliente(Number(req.params.idCliente))
+    var idUsuarioCliente = Number(req.params.idUsuarioCliente)
+    if (!Number.isFinite(idUsuarioCliente)) {
+      throw Object.assign(new Error('Parametro idUsuarioCliente invalido'), { status: 400 })
+    }
+    var CITAS = await listarCitasCliente(idUsuarioCliente)
     res.json({ citas: CITAS })
   } catch (error) { next(error) }
 })
 
-router.get('/abogado/:idAbogado', verificarToken, async (req, res, next) => {
+router.get('/abogado/:idUsuarioAbogado', verificarToken, async (req, res, next) => {
   try {
-    var CITAS = await listarCitasAbogado(Number(req.params.idAbogado))
+    var idUsuarioAbogado = Number(req.params.idUsuarioAbogado)
+    if (!Number.isFinite(idUsuarioAbogado)) {
+      throw Object.assign(new Error('Parametro idUsuarioAbogado invalido'), { status: 400 })
+    }
+    var CITAS = await listarCitasAbogado(idUsuarioAbogado)
     res.json({ citas: CITAS })
   } catch (error) { next(error) }
 })
