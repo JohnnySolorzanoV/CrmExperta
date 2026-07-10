@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useUsuarioStore } from './usuariostore';
-import { buildApiUrl } from '../utils/api';
+import { apiFetch } from '../utils/api';
 import { parseServerDate, toIsoUtc } from '../utils/datetime';
 
 export const useChatbotStore = defineStore('chatbot', () => {
@@ -29,23 +29,13 @@ export const useChatbotStore = defineStore('chatbot', () => {
         }
     }
 
-    function manejarErrorAutenticacion(data) {
-        const mensaje = data?.error || data?.mensaje || '';
-        const esErrorToken = typeof mensaje === 'string' && mensaje.toLowerCase().includes('token');
-        if (esErrorToken) {
-            usuarioStore.cerrarSesion();
-            throw new Error(MENSAJE_RELOGIN);
-        }
-        throw new Error(mensaje || 'No autorizado para realizar esta accion.');
-    }
-
     async function agendarDesdeChat(datosAgendar, fechaHoraCopia, idAbogado, idCalendario) {
         asegurarSesionActiva();
         const fechaCanonica = toIsoUtc(fechaHoraCopia);
         if (!fechaCanonica) {
             throw new Error('La fecha seleccionada no tiene un formato valido.');
         }
-        const response = await fetch(buildApiUrl('/chatbot/agendar'), {
+        const response = await apiFetch('/chatbot/agendar', {
             method: "POST",
             body: JSON.stringify({
                 idCliente: usuarioStore.usuario.id,
@@ -61,7 +51,7 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
         const data = await parseResponseSafe(response);
         if (!response.ok) {
-            if (response.status === 401) manejarErrorAutenticacion(data);
+            if (response.status === 401) throw new Error(MENSAJE_RELOGIN);
             throw new Error(data?.error || data?.mensaje || 'No se pudo agendar la cita desde el chatbot.');
         }
         return data;
@@ -107,12 +97,12 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
     async function cargarAbogadosDisponibles() {
         asegurarSesionActiva();
-        const response = await fetch(buildApiUrl('/abogados'), {
+        const response = await apiFetch('/abogados', {
             headers: { "Authorization": `Bearer ${usuarioStore.token}` }
         });
         const data = await parseResponseSafe(response);
         if (!response.ok) {
-            if (response.status === 401) manejarErrorAutenticacion(data);
+            if (response.status === 401) throw new Error(MENSAJE_RELOGIN);
             throw new Error(data?.error || data?.mensaje || 'No se pudo cargar la lista de abogados.');
         }
         abogadosDisponibles.value = data?.abogados || [];
@@ -121,12 +111,12 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
     async function cargarDisponibilidadAbogado(idAbogadoUsuario) {
         asegurarSesionActiva();
-        const response = await fetch(buildApiUrl(`/calendario/abogado/${idAbogadoUsuario}/disponibilidad`), {
+        const response = await apiFetch(`/calendario/abogado/${idAbogadoUsuario}/disponibilidad`, {
             headers: { "Authorization": `Bearer ${usuarioStore.token}` }
         });
         const data = await parseResponseSafe(response);
         if (!response.ok) {
-            if (response.status === 401) manejarErrorAutenticacion(data);
+            if (response.status === 401) throw new Error(MENSAJE_RELOGIN);
             throw new Error(data?.error || data?.mensaje || 'No se pudo cargar disponibilidad del abogado.');
         }
         disponibilidadAbogado.value = data?.disponibilidad || [];
@@ -140,14 +130,14 @@ export const useChatbotStore = defineStore('chatbot', () => {
         try {
             mensajes.value.push({ role: 'user', content: mensaje }) 
             
-            const response = await fetch(buildApiUrl('/chatbot/consultar'), {
+            const response = await apiFetch('/chatbot/consultar', {
                 method: "POST",
                 body: JSON.stringify({ idUsuario: usuarioStore.usuario.id, mensaje }),
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${usuarioStore.token}` }
             });
             const data = await parseResponseSafe(response);
             if (!response.ok) {
-                if (response.status === 401) manejarErrorAutenticacion(data);
+                if (response.status === 401) throw new Error(MENSAJE_RELOGIN);
                 throw new Error(data?.error || data?.mensaje || 'No se pudo consultar el chatbot.');
             }
 

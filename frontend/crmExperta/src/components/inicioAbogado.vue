@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
 import { mapCitasToCalendarItems } from '../utils/calendarGrid'
-import { buildApiUrl } from '../utils/api'
+import { apiFetch } from '../utils/api'
 import { parseServerDate } from '../utils/datetime'
 
 const usuarioStore = useUsuarioStore()
@@ -143,7 +143,7 @@ async function fetchCitas() {
   }
   loadingCitas.value = true
   try {
-    const res = await fetch(buildApiUrl(`/citas/abogado/${abogadoId.value}`), { headers: authHeaders() })
+    const res = await apiFetch(`/citas/abogado/${abogadoId.value}`, { headers: authHeaders() })
     if (!res.ok) throw new Error('No se pudieron cargar las citas')
     const data = await res.json()
     citas.value = (data.citas || []).filter((c) => c.estadoCita !== 'cancelada')
@@ -161,7 +161,7 @@ async function fetchCasos() {
   }
   loadingCasos.value = true
   try {
-    const res = await fetch(buildApiUrl(`/casos/abogado/${abogadoId.value}`), { headers: authHeaders() })
+    const res = await apiFetch(`/casos/abogado/${abogadoId.value}`, { headers: authHeaders() })
     if (!res.ok) throw new Error('No se pudieron cargar los casos')
     const data = await res.json()
     casos.value = data.casos || []
@@ -194,7 +194,7 @@ async function confirmarCancelacion() {
   cancelando.value = true
   errorCancelar.value = ''
   try {
-    const res = await fetch(buildApiUrl(`/citas/${citaCancelarId.value}/cancelar`), {
+    const res = await apiFetch(`/citas/${citaCancelarId.value}/cancelar`, {
       method: 'PUT',
       headers: authHeaders(),
       body: JSON.stringify({ motivoCancelacion: motivoCancelar.value, canceladoPor: 'abogado' }),
@@ -217,7 +217,7 @@ async function aceptarCita(id) {
     return
   }
   try {
-    const res = await fetch(buildApiUrl(`/citas/${id}/aceptar`), { method: 'PUT', headers: authHeaders() })
+    const res = await apiFetch(`/citas/${id}/aceptar`, { method: 'PUT', headers: authHeaders() })
     if (!res.ok) throw new Error('No se pudo aceptar la cita')
     await fetchCitas()
   } catch (e) {
@@ -266,7 +266,7 @@ async function crearCasoDesdeCita() {
   creandoCaso.value = true
   errorCaso.value = ''
   try {
-    const response = await fetch(buildApiUrl('/casos'), {
+    const response = await apiFetch('/casos', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({

@@ -1,5 +1,5 @@
 import { Router as routerExpress } from 'express'
-import { iniciarSesion, recuperarContrasena } from './auth.casosDeUso.js'
+import { iniciarSesion, recuperarContrasena, restablecerContrasena } from './auth.casosDeUso.js'
 
 var router = routerExpress()
 
@@ -26,6 +26,19 @@ router.post('/recuperar-contrasena', async (req, res, next) => {
 
     var RECUP_RESULT = await recuperarContrasena(correo)
     res.json(RECUP_RESULT)
+  } catch (error) { next(error) }
+})
+
+router.post('/restablecer-contrasena', async (req, res, next) => {
+  try {
+    var { token, nuevaContrasena } = req.body
+    if (!token || !nuevaContrasena) {
+      var codigodeErr = 400
+      return res.status(codigodeErr).json({ error: 'Token y nueva contraseña requeridos' })
+    }
+
+    var RESET_RESULT = await restablecerContrasena({ token, nuevaContrasena })
+    res.json(RESET_RESULT)
   } catch (error) { next(error) }
 })
 

@@ -6,6 +6,7 @@ import admin from './components/admin.vue'
 import loginPerfil from './components/loginPerfil.vue'
 import crearPerfil from './components/crearPerfil.vue'
 import recuperarContrasena from './components/recuperarContrasena.vue'
+import resetContrasena from './components/resetContrasena.vue'
 import abogados from './components/abogados.vue'
 import citas from './components/citas.vue'
 import documentos from './components/documentos.vue'
@@ -49,6 +50,11 @@ const rutas = [
         path: '/recuperarContrasena',
         component: recuperarContrasena,
         meta: { publica: true, soloInvitado: true }
+    },
+    {
+        path: '/reset-contrasena/:token',
+        component: resetContrasena,
+        meta: { publica: true }
     },
     // Rutas admin
     {
@@ -122,9 +128,15 @@ function obtenerRutaPorRol(usuario) {
 
 router.beforeEach((to) => {
     const usuarioStore = useUsuarioStore()
+    const sesionValida = usuarioStore.verificarSesion()
     const usuario = usuarioStore.usuario
     const rutaDestinoRol = obtenerRutaPorRol(usuario)
     const esRutaPublica = Boolean(to.meta?.publica)
+
+    if (!sesionValida) {
+        if (esRutaPublica || to.path === '/loginPerfil') return true
+        return '/loginPerfil'
+    }
 
     if (!usuario) {
         if (esRutaPublica) return true

@@ -70,3 +70,44 @@ export async function eliminar(id) {
   var r = await db.ejecutarConsulta('DELETE FROM Usuario WHERE id = $1 RETURNING id', [id])
   return r.rowCount > 0
 }
+
+export async function obtenerDependenciasActivas(idUsuarioAbogado) {
+  var abogado = await db.ejecutarConsulta(
+    'SELECT id FROM Abogado WHERE id_usuario = $1',
+    [idUsuarioAbogado]
+  )
+
+  if (abogado.rows.length === 0) {
+    return null
+  }
+
+  var idAbogado = abogado.rows[0].id
+
+  var totalCasos = await db.ejecutarConsulta(
+    'SELECT COUNT(*)::int AS total FROM Caso WHERE id_abogado = $1',
+    [idAbogado]
+  )
+
+  var totalCitasActivas = await db.ejecutarConsulta(
+    `SELECT COUNT(*)::int AS total
+     FROM Cita
+     WHERE id_abogado = $1
+       AND estado_cita NOT IN ('cancelada', 'completada')`,
+    [idAbogado]
+  )
+
+  return {
+    idAbogado,
+    totalCasos: totalCasos.rows[0].total,
+    totalCitasActivas: totalCitasActivas.rows[0].total,
+  }
+}
+
+export async function eliminarCitasCerradas(idAbogado) {
+  await db.ejecutarConsulta(
+    `DELETE FROM Cita
+     WHERE id_abogado = $1
+       AND estado_cita IN ('cancelada', 'completada')`,
+    [idAbogado]
+  )
+}

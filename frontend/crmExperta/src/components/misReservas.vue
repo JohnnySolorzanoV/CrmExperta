@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
 import { mapCitasToCalendarItems, mapSlotsToCalendarItems } from '../utils/calendarGrid'
-import { buildApiUrl } from '../utils/api'
+import { apiFetch } from '../utils/api'
 import { isPastDate, parseServerDate } from '../utils/datetime'
 
 const usuarioStore = useUsuarioStore()
@@ -222,7 +222,7 @@ async function cargarReservas() {
   cargando.value = true
   error.value = ''
   try {
-    const res = await fetch(buildApiUrl(`/citas/cliente/${usuarioStore.usuario.id}`), {
+    const res = await apiFetch(`/citas/cliente/${usuarioStore.usuario.id}`, {
       headers: { Authorization: `Bearer ${usuarioStore.token}` },
     })
     const data = await res.json()
@@ -261,7 +261,7 @@ async function confirmarCancelacionCliente() {
   cancelandoCita.value = true
   errorCancelar.value = ''
   try {
-    const res = await fetch(buildApiUrl(`/citas/${citaCancelarId.value}/cancelar`), {
+    const res = await apiFetch(`/citas/${citaCancelarId.value}/cancelar`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${usuarioStore.token}` },
       body: JSON.stringify({ motivoCancelacion: motivoCancelarCliente.value, canceladoPor: 'cliente' }),
@@ -305,7 +305,7 @@ async function cargarSlotsReagendar() {
   try {
     // The backend accepts either the Usuario id or the Abogado PK for this endpoint.
     const idAbogado = citaReagendar.value.idAbogado
-    const res = await fetch(buildApiUrl(`/calendario/abogado/${idAbogado}/disponibilidad`), {
+    const res = await apiFetch(`/calendario/abogado/${idAbogado}/disponibilidad`, {
       headers: { Authorization: `Bearer ${usuarioStore.token}` },
     })
     const data = await res.json()
@@ -340,7 +340,7 @@ async function confirmarReagendamiento() {
   reagendandoCita.value = true
   errorReagendar.value = ''
   try {
-    const res = await fetch(buildApiUrl(`/citas/${citaReagendar.value.id}/reprogramar`), {
+    const res = await apiFetch(`/citas/${citaReagendar.value.id}/reprogramar`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${usuarioStore.token}` },
       body: JSON.stringify({ fechaHoraCopia: slot.fechaEvento, idCalendario: slot.id ?? null }),
@@ -370,7 +370,7 @@ async function cargarCasos() {
   if (!usuarioStore.usuario?.id || !usuarioStore.token) return
   cargandoCasos.value = true
   try {
-    const res = await fetch(buildApiUrl(`/casos/cliente/${usuarioStore.usuario.id}`), {
+    const res = await apiFetch(`/casos/cliente/${usuarioStore.usuario.id}`, {
       headers: { Authorization: `Bearer ${usuarioStore.token}` },
     })
     const data = await res.json()

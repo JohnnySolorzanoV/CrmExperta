@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
-import { buildApiUrl } from '../utils/api'
+import { apiFetch } from '../utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -64,8 +64,8 @@ async function cargarCaso() {
     const casoId = Number(route.params.id)
 
     const [casoRes, docsRes] = await Promise.all([
-      fetch(buildApiUrl(`/casos/${casoId}`), { headers: authHeaders() }),
-      fetch(buildApiUrl(`/documentos/caso/${casoId}`), { headers: authHeaders() })
+      apiFetch(`/casos/${casoId}`, { headers: authHeaders() }),
+      apiFetch(`/documentos/caso/${casoId}`, { headers: authHeaders() })
     ])
 
     const casoData = await casoRes.json()
@@ -92,7 +92,7 @@ async function guardarNotasConclusiones() {
   errorNotas.value = ''
   mensajeNotas.value = ''
   try {
-    const response = await fetch(buildApiUrl(`/casos/${caso.value.id}/notas-conclusiones`), {
+    const response = await apiFetch(`/casos/${caso.value.id}/notas-conclusiones`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ async function actualizarEstadoCaso() {
   actualizandoEstado.value = true
   error.value = ''
   try {
-    const response = await fetch(buildApiUrl(`/casos/${caso.value.id}/estado`), {
+    const response = await apiFetch(`/casos/${caso.value.id}/estado`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ async function subirDocumentoCaso() {
     if (archivoSeleccionado.value) {
       payload.append('archivo', archivoSeleccionado.value)
     }
-    const response = await fetch(buildApiUrl('/documentos'), {
+    const response = await apiFetch('/documentos', {
       method: 'POST',
       headers: {
         ...authHeaders()
@@ -195,7 +195,7 @@ async function subirDocumentoCaso() {
 async function descargarDocumento(doc) {
   if (!doc?.id) return
   try {
-    const response = await fetch(buildApiUrl(`/documentos/${doc.id}/descargar`), {
+    const response = await apiFetch(`/documentos/${doc.id}/descargar`, {
       headers: authHeaders()
     })
     if (!response.ok) {

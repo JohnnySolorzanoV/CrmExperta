@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { buildApiUrl } from '../utils/api'
+import { apiFetch } from '../utils/api'
 
 export const useAbogadosStore = defineStore('abogados', () => {
   const abogados = ref([])
@@ -35,7 +35,7 @@ export const useAbogadosStore = defineStore('abogados', () => {
     loading.value = true
     mensaje.value = ''
     try {
-      const response = await fetch(buildApiUrl('/abogados'), { headers: authHeaders(token) })
+      const response = await apiFetch('/abogados', { headers: authHeaders(token) })
       if (!response.ok) throw new Error(await mensajeErrorDesdeResponse(response, 'No se pudo cargar la lista de abogados'))
       const data = await response.json()
       abogados.value = data.abogados || []
@@ -57,7 +57,7 @@ export const useAbogadosStore = defineStore('abogados', () => {
     saving.value = true
     mensaje.value = ''
     try {
-      const response = await fetch(buildApiUrl('/abogados'), {
+      const response = await apiFetch('/abogados', {
         method: 'POST',
         headers: authHeaders(token),
         body: JSON.stringify(payload)
@@ -83,7 +83,7 @@ export const useAbogadosStore = defineStore('abogados', () => {
     saving.value = true
     mensaje.value = ''
     try {
-      const response = await fetch(buildApiUrl(`/abogados/${abogadoId}`), {
+      const response = await apiFetch(`/abogados/${abogadoId}`, {
         method: 'PUT',
         headers: authHeaders(token),
         body: JSON.stringify(payload)
@@ -109,7 +109,7 @@ export const useAbogadosStore = defineStore('abogados', () => {
     saving.value = true
     mensaje.value = ''
     try {
-      const response = await fetch(buildApiUrl(`/abogados/${abogadoId}`), {
+      const response = await apiFetch(`/abogados/${abogadoId}`, {
         method: 'DELETE',
         headers: authHeaders(token)
       })

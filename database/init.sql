@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS Usuario (
     nombre VARCHAR(100) NOT NULL,
     correo VARCHAR(100) UNIQUE NOT NULL,
     contrasena VARCHAR(255) NOT NULL,
+    reset_token_hash VARCHAR(255),
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS Caso (
     notas TEXT,
     conclusiones TEXT,
     id_cliente INTEGER NOT NULL REFERENCES Cliente(id) ON DELETE CASCADE,
-    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE CASCADE
+    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS Chatbot (
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS Chatbot (
 
 CREATE TABLE IF NOT EXISTS Calendario (
     id SERIAL PRIMARY KEY,
-    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE CASCADE,
+    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE RESTRICT,
     fecha_evento TIMESTAMP NOT NULL,
     descripcion TEXT
 );
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS Calendario (
 CREATE TABLE IF NOT EXISTS Cita (
     id SERIAL PRIMARY KEY,
     id_cliente INTEGER NOT NULL REFERENCES Cliente(id) ON DELETE CASCADE,
-    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE CASCADE,
+    id_abogado INTEGER NOT NULL REFERENCES Abogado(id) ON DELETE RESTRICT,
     fecha_hora_copia TIMESTAMP NOT NULL,
     id_calendario INTEGER REFERENCES Calendario(id) ON DELETE SET NULL,
     motivo TEXT,
@@ -76,13 +77,6 @@ CREATE TABLE IF NOT EXISTS Cita (
     CONSTRAINT cita_abogado_requerido CHECK (id_abogado IS NOT NULL)
 );
 
--- One active (non-cancelled) appointment per lawyer per clock-hour.
--- Partial index so cancelled rows do not block the slot.
--- Run once and is idempotent via IF NOT EXISTS. If existing duplicates exist, clean them first.
-CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_abogado_hora_activa
-  ON Cita (id_abogado, date_trunc('hour', fecha_hora_copia))
-  WHERE estado_cita != 'cancelada';
-
 CREATE TABLE IF NOT EXISTS Documento (
     id SERIAL PRIMARY KEY,
     id_caso INTEGER NOT NULL REFERENCES Caso(id) ON DELETE CASCADE,
@@ -94,3 +88,10 @@ CREATE TABLE IF NOT EXISTS Documento (
     tamaño INTEGER NOT NULL
 );
 
+
+-- One active (non-cancelled) appointment per lawyer per clock-hour.
+-- Partial index so cancelled rows do not block the slot.
+-- Run once and is idempotent via IF NOT EXISTS. If existing duplicates exist, clean them first.
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_abogado_hora_activa
+  ON Cita (id_abogado, date_trunc('hour', fecha_hora_copia))
+  WHERE estado_cita != 'cancelada';

@@ -43,3 +43,32 @@ export async function detectarRoles(idU) {
 
   return roles_array
 }
+
+export async function guardarTokenRecuperacion(idUsuario, tokenHash) {
+  await ejecutarConsulta(
+    `UPDATE Usuario
+     SET reset_token_hash = $1
+     WHERE id = $2`,
+    [tokenHash, idUsuario]
+  )
+}
+
+export async function buscarPorTokenResetHashValido(tokenHash) {
+  var r = await ejecutarConsulta(
+    `${SQL_USR} FROM Usuario
+     WHERE reset_token_hash = $1`,
+    [tokenHash]
+  )
+  if (r.rows.length === 0) return null
+  return new Usuario(r.rows[0])
+}
+
+export async function actualizarContrasenaYLimpiarToken(idUsuario, contrasenaHash) {
+  await ejecutarConsulta(
+    `UPDATE Usuario
+     SET contrasena = $1,
+         reset_token_hash = NULL
+     WHERE id = $2`,
+    [contrasenaHash, idUsuario]
+  )
+}
