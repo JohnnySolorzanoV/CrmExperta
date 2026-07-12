@@ -7,8 +7,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node seed.js",
-    "test:unit": "cross-env NODE_ENV=test vitest run",
-    "test:integration": "cross-env NODE_ENV=test vitest run tests/integration"
+    "test:unit": "cross-env NODE_ENV=test vitest run --reporter=verbose",
+    "test:integration": "cross-env NODE_ENV=test vitest run tests/integration --reporter=verbose"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
