@@ -29,7 +29,7 @@ describe('Integracion /api/chatbot', () => {
     )
   })
 
-  it('GET /api/chatbot/historial/:idUsuario retorna historial', async () => {
+  it('INT-CHATBOT-01 GET /api/chatbot/historial/:idUsuario retorna el historial del usuario autenticado', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .get('/api/chatbot/historial/' + ids.clienteUsuarioId)

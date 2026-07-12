@@ -23,7 +23,7 @@ describe('documento.repositorio', () => {
     casoId = caso.rows[0].id
   })
 
-  it('crear y buscarPorId retorna documento', async () => {
+  it('UNIT-DOCUMENTOS-01 crear y buscarPorId persisten y recuperan correctamente un documento', async () => {
     if (!dbLista) return
     var creado = await repo.crear({
       idCaso: casoId,

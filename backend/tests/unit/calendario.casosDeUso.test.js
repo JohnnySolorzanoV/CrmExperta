@@ -18,18 +18,18 @@ describe('calendario.casosDeUso', () => {
     vi.clearAllMocks()
   })
 
-  it('listarSlots retorna 404 si abogado no existe', async () => {
+  it('UNIT-CALENDARIO-01 listarSlots retorna 404 cuando el abogado solicitado no existe', async () => {
     db.ejecutarConsulta.mockResolvedValue({ rows: [] })
     var { listarSlots } = await import('../../modulos/calendario/calendario.casosDeUso.js')
     await expect(listarSlots(999)).rejects.toMatchObject({ status: 404 })
   })
 
-  it('crearSlot requiere datos minimos', async () => {
+  it('UNIT-CALENDARIO-02 crearSlot rechaza solicitudes sin los campos obligatorios', async () => {
     var { crearSlot } = await import('../../modulos/calendario/calendario.casosDeUso.js')
     await expect(crearSlot({ idAbogado: 1 })).rejects.toMatchObject({ status: 400 })
   })
 
-  it('eliminarSlot retorna mensaje cuando elimina', async () => {
+  it('UNIT-CALENDARIO-03 eliminarSlot retorna un mensaje de confirmacion cuando elimina el registro', async () => {
     repo.eliminar.mockResolvedValue(true)
     var { eliminarSlot } = await import('../../modulos/calendario/calendario.casosDeUso.js')
     var r = await eliminarSlot(2)

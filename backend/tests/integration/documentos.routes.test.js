@@ -32,7 +32,7 @@ describe('Integracion /api/documentos', () => {
     casoId = caso.rows[0].id
   })
 
-  it('POST /api/documentos crea documento valido', async () => {
+  it('INT-DOCUMENTOS-01 POST /api/documentos crea un documento valido asociado al caso', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .post('/api/documentos')

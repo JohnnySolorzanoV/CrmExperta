@@ -24,7 +24,7 @@ describe('Integracion /api/abogados', () => {
     })
   })
 
-  it('DELETE /api/abogados/:id bloquea eliminacion cuando hay casos', async () => {
+  it('INT-ABOGADOS-01 DELETE /api/abogados/:id bloquea la eliminacion cuando existen casos asignados', async () => {
     if (!dbLista) return
 
     await queryTest(
@@ -41,7 +41,7 @@ describe('Integracion /api/abogados', () => {
     expect(r.body.error).toBe('No se puede eliminar el abogado porque tiene casos asignados')
   })
 
-  it('DELETE /api/abogados/:id bloquea eliminacion cuando hay citas activas', async () => {
+  it('INT-ABOGADOS-02 DELETE /api/abogados/:id bloquea la eliminacion cuando hay citas activas programadas', async () => {
     if (!dbLista) return
 
     await queryTest(
@@ -58,7 +58,7 @@ describe('Integracion /api/abogados', () => {
     expect(r.body.error).toBe('No se puede eliminar el abogado porque tiene citas activas programadas')
   })
 
-  it('DELETE /api/abogados/:id permite eliminar si solo hay citas cerradas', async () => {
+  it('INT-ABOGADOS-03 DELETE /api/abogados/:id permite eliminar cuando solo existen citas cerradas', async () => {
     if (!dbLista) return
 
     await queryTest(

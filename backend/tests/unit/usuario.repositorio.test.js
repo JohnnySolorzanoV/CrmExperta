@@ -18,20 +18,20 @@ describe('usuario.repositorio', () => {
     })()
   })
 
-  it('obtenerTodos mapea usuarios', async () => {
+  it('UNIT-USUARIOS-01 obtenerTodos mapea correctamente las filas a entidades de usuario', async () => {
     if (!dbLista) return
     var r = await repo.obtenerTodos()
     expect(r.length).toBeGreaterThan(0)
     expect(r[0].correo).toBeTruthy()
   })
 
-  it('eliminar retorna true si rowCount > 0', async () => {
+  it('UNIT-USUARIOS-02 eliminar retorna true cuando se elimina al menos un registro', async () => {
     if (!dbLista) return
     var ok = await repo.eliminar(ids.clienteUsuarioId)
     expect(ok).toBe(true)
   })
 
-  it('obtenerRoles incluye solo roles encontrados', async () => {
+  it('UNIT-USUARIOS-03 obtenerRoles devuelve solo los roles realmente presentes', async () => {
     if (!dbLista) return
     var r = await repo.obtenerRoles(ids.abogadoUsuarioId)
     expect(r).toEqual(['abogado'])

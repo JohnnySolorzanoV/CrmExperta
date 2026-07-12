@@ -26,22 +26,29 @@ describe('caso.repositorio', () => {
     })()
   })
 
-  it('obtenerTodos mapea rows a entidades Caso', async () => {
+  it('UNIT-CASOS-01 obtenerTodos transforma filas en entidades Caso con datos consistentes', async () => {
     if (!dbLista) return
     var r = await repo.obtenerTodos()
     expect(r.length).toBeGreaterThan(0)
     expect(r[0].nombreCaso).toBeTruthy()
   })
 
-  it('buscarPorId retorna null cuando no existe', async () => {
+  it('UNIT-CASOS-02 buscarPorId retorna null cuando el caso no existe', async () => {
     if (!dbLista) return
     var r = await repo.buscarPorId(999)
     expect(r).toBeNull()
   })
 
-  it('actualizarEstado retorna entidad cuando hay fila', async () => {
+  it('UNIT-CASOS-03 actualizarEstado retorna la entidad actualizada cuando existe coincidencia', async () => {
     if (!dbLista) return
     var r = await repo.actualizarEstado(casoId, 'cerrado')
     expect(r?.estadoCaso).toBe('cerrado')
+  })
+
+  it('UNIT-CASOS-04 actualizarNotasConclusiones persiste y retorna notas y conclusiones actualizadas', async () => {
+    if (!dbLista) return
+    var r = await repo.actualizarNotasConclusiones(casoId, 'Nota de seguimiento', 'Conclusion del caso')
+    expect(r?.notas).toBe('Nota de seguimiento')
+    expect(r?.conclusiones).toBe('Conclusion del caso')
   })
 })

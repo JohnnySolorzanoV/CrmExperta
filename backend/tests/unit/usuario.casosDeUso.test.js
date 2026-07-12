@@ -18,19 +18,19 @@ describe('usuario.casosDeUso', () => {
     vi.clearAllMocks()
   })
 
-  it('agregarRol rechaza rol invalido', async () => {
+  it('UNIT-USUARIOS-01 agregarRol rechaza solicitudes con roles no permitidos', async () => {
     repo.buscarPorId.mockResolvedValue({ id: 1 })
     var { agregarRol } = await import('../../modulos/usuarios/usuario.casosDeUso.js')
     await expect(agregarRol(1, 'superadmin')).rejects.toMatchObject({ status: 400 })
   })
 
-  it('agregarRol abogado exige datos extra', async () => {
+  it('UNIT-USUARIOS-02 agregarRol exige datos adicionales cuando se asigna el rol de abogado', async () => {
     repo.buscarPorId.mockResolvedValue({ id: 1 })
     var { agregarRol } = await import('../../modulos/usuarios/usuario.casosDeUso.js')
     await expect(agregarRol(1, 'abogado', {})).rejects.toMatchObject({ status: 400 })
   })
 
-  it('obtenerUsuario carga roles', async () => {
+  it('UNIT-USUARIOS-03 obtenerUsuario incorpora los roles asociados al perfil consultado', async () => {
     repo.buscarPorId.mockResolvedValue({ id: 8, nombre: 'User' })
     repo.obtenerRoles.mockResolvedValue(['cliente'])
     var { obtenerUsuario } = await import('../../modulos/usuarios/usuario.casosDeUso.js')

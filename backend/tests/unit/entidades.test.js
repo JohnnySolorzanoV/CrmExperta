@@ -5,7 +5,7 @@ import { Caso } from '../../entidades/caso.js'
 import { Abogado } from '../../entidades/abogado.js'
 
 describe('entidades', () => {
-  it('Usuario asigna campos base', () => {
+  it('UNIT-ENTIDADES-01 Usuario asigna correctamente los campos base del modelo', () => {
     var u = new Usuario({
       id: 1,
       identificacion: '0101',
@@ -21,7 +21,7 @@ describe('entidades', () => {
     expect(u.correo).toBe('user@test.com')
   })
 
-  it('Cita aplica defaults esperados', () => {
+  it('UNIT-ENTIDADES-02 Cita aplica los valores por defecto definidos para campos opcionales', () => {
     var c = new Cita({
       id: 2,
       idCliente: 10,
@@ -39,7 +39,7 @@ describe('entidades', () => {
     expect(c.canceladoPor).toBeNull()
   })
 
-  it('Caso asigna campos y nombres opcionales', () => {
+  it('UNIT-ENTIDADES-03 Caso asigna campos requeridos y mantiene valores por defecto en nombres opcionales', () => {
     var caso = new Caso({
       id: 1,
       estadoCaso: 'abierto',
@@ -54,7 +54,7 @@ describe('entidades', () => {
     expect(caso.abogadoNombre).toBe('')
   })
 
-  it('Abogado hereda Usuario y agrega datos propios', () => {
+  it('UNIT-ENTIDADES-04 Abogado hereda de Usuario y expone sus atributos especificos', () => {
     var a = new Abogado({
       id: 9,
       identificacion: '0102',

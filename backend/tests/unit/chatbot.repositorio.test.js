@@ -16,7 +16,7 @@ describe('chatbot.repositorio', () => {
     ids = await sembrarUsuariosBase()
   })
 
-  it('crear y obtenerHistorial funcionan para usuario', async () => {
+  it('UNIT-CHATBOT-01 crear y obtenerHistorial almacenan y recuperan conversaciones por usuario', async () => {
     if (!dbLista) return
     await repo.crear({
       idUsuario: ids.clienteUsuarioId,

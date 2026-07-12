@@ -25,7 +25,7 @@ describe('cita.casosDeUso', () => {
     vi.clearAllMocks()
   })
 
-  it('agendarCita falla por datos faltantes', async () => {
+  it('UNIT-CITAS-01 agendarCita rechaza solicitudes cuando faltan campos obligatorios', async () => {
     var { agendarCita } = await import('../../modulos/citas/cita.casosDeUso.js')
 
     await expect(agendarCita({ idAbogado: 10 })).rejects.toMatchObject({
@@ -34,7 +34,7 @@ describe('cita.casosDeUso', () => {
     })
   })
 
-  it('agendarCita falla por conflicto de hora del abogado', async () => {
+  it('UNIT-CITAS-02 agendarCita responde con conflicto cuando el abogado ya tiene una cita en la franja', async () => {
     mockDb.ejecutarConsulta
       .mockResolvedValueOnce({ rows: [{ id: 200 }] })
       .mockResolvedValueOnce({ rows: [{ id: 300 }] })
@@ -55,19 +55,19 @@ describe('cita.casosDeUso', () => {
     })
   })
 
-  it('cancelarCita devuelve 404 si no existe', async () => {
+  it('UNIT-CITAS-03 cancelarCita retorna 404 cuando la cita objetivo no existe', async () => {
     mockRepo.cancelarConMotivo.mockResolvedValue(null)
     var { cancelarCita } = await import('../../modulos/citas/cita.casosDeUso.js')
     await expect(cancelarCita(999, {})).rejects.toMatchObject({ status: 404 })
   })
 
-  it('aceptarCita devuelve 404 si no existe', async () => {
+  it('UNIT-CITAS-04 aceptarCita retorna 404 cuando la cita objetivo no existe', async () => {
     mockRepo.actualizarEstado.mockResolvedValue(null)
     var { aceptarCita } = await import('../../modulos/citas/cita.casosDeUso.js')
     await expect(aceptarCita(999)).rejects.toMatchObject({ status: 404 })
   })
 
-  it('reprogramarCita devuelve 404 si no existe', async () => {
+  it('UNIT-CITAS-05 reprogramarCita retorna 404 cuando la cita solicitada no existe', async () => {
     mockRepo.buscarPorId.mockResolvedValue(null)
     var { reprogramarCita } = await import('../../modulos/citas/cita.casosDeUso.js')
     await expect(reprogramarCita(999, '2026-07-06T10:00:00.000Z', null)).rejects.toMatchObject({ status: 404 })

@@ -24,7 +24,7 @@ describe('Integracion /api/calendario', () => {
     })
   })
 
-  it('GET /api/calendario/abogado/:id/disponibilidad responde lista', async () => {
+  it('INT-CALENDARIO-01 GET /api/calendario/abogado/:id/disponibilidad retorna una lista de disponibilidad', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .get('/api/calendario/abogado/' + ids.abogadoUsuarioId + '/disponibilidad')
@@ -34,7 +34,7 @@ describe('Integracion /api/calendario', () => {
     expect(Array.isArray(r.body.disponibilidad)).toBe(true)
   })
 
-  it('GET /api/calendario/abogado/:id/disponibilidad serializa fechas en UTC ISO', async () => {
+  it('INT-CALENDARIO-02 GET /api/calendario/abogado/:id/disponibilidad serializa fechas en formato ISO UTC', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .get('/api/calendario/abogado/' + ids.abogadoUsuarioId + '/disponibilidad')
@@ -46,7 +46,7 @@ describe('Integracion /api/calendario', () => {
     }
   })
 
-  it('GET /api/calendario/abogado/:id/disponibilidad admite id interno por compatibilidad', async () => {
+  it('INT-CALENDARIO-03 GET /api/calendario/abogado/:id/disponibilidad acepta id interno por compatibilidad', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .get('/api/calendario/abogado/' + ids.abogadoPkId + '/disponibilidad')

@@ -25,7 +25,7 @@ describe('Integracion /api/citas', () => {
     })
   })
 
-  it('POST /api/citas crea una cita', async () => {
+  it('INT-CITAS-01 POST /api/citas crea una cita valida y retorna su representacion', async () => {
     if (!dbLista) return
     var body = {
       idCliente: baseIds.clienteUsuarioId,
@@ -44,7 +44,7 @@ describe('Integracion /api/citas', () => {
     expect(r.body.cita.idAbogado).toBe(baseIds.abogadoPkId)
   })
 
-  it('POST /api/citas rechaza conflicto de misma hora del abogado', async () => {
+  it('INT-CITAS-02 POST /api/citas rechaza conflictos cuando el abogado ya tiene una cita en la misma franja', async () => {
     if (!dbLista) return
     var citaBase = {
       idCliente: baseIds.clienteUsuarioId,
@@ -72,14 +72,14 @@ describe('Integracion /api/citas', () => {
     expect(r2.body.error).toBe('Este abogado ya tiene una cita en esa hora')
   })
 
-  it('GET /api/citas sin token devuelve 401', async () => {
+  it('INT-CITAS-03 GET /api/citas exige autenticacion y responde 401 sin token', async () => {
     if (!dbLista) return
     var r = await request(APP).get('/api/citas')
     expect(r.status).toBe(401)
     expect(r.body.error).toBe('Token requerido')
   })
 
-  it('GET /api/citas/cliente/:idUsuario devuelve fechas en ISO UTC', async () => {
+  it('INT-CITAS-04 GET /api/citas/cliente/:idUsuario devuelve fechas serializadas en ISO UTC', async () => {
     if (!dbLista) return
     await request(APP)
       .post('/api/citas')
@@ -101,7 +101,7 @@ describe('Integracion /api/citas', () => {
     expect(r.body.citas[0].fechaHoraCopia).toMatch(/Z$/)
   })
 
-  it('GET /api/citas/cliente/:idUsuario admite id interno por compatibilidad', async () => {
+  it('INT-CITAS-05 GET /api/citas/cliente/:idUsuario admite id interno para mantener compatibilidad', async () => {
     if (!dbLista) return
     await request(APP)
       .post('/api/citas')

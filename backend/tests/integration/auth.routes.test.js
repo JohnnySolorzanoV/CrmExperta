@@ -16,7 +16,7 @@ describe('Integracion /api/auth', () => {
     await sembrarUsuariosBase()
   })
 
-  it('POST /api/auth/login responde 200 con token si credenciales validas', async () => {
+  it('INT-AUTH-01 POST /api/auth/login retorna token cuando las credenciales son validas', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .post('/api/auth/login')
@@ -27,7 +27,7 @@ describe('Integracion /api/auth', () => {
     expect(r.body.usuario?.correo).toBe('cliente@test.com')
   })
 
-  it('POST /api/auth/login responde 401 con credenciales invalidas', async () => {
+  it('INT-AUTH-02 POST /api/auth/login rechaza credenciales invalidas con estado 401', async () => {
     if (!dbLista) return
     var r = await request(APP)
       .post('/api/auth/login')

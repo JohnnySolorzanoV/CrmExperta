@@ -15,7 +15,7 @@ describe('auth.casosDeUso - iniciarSesion', () => {
     vi.clearAllMocks()
   })
 
-  it('rechaza cuando el correo no existe', async () => {
+  it('UNIT-AUTH-01 iniciarSesion rechaza credenciales cuando el correo no esta registrado', async () => {
     mockRepo.buscarPorCorreo.mockResolvedValue(null)
     var { iniciarSesion } = await import('../../modulos/auth/auth.casosDeUso.js')
 
@@ -24,7 +24,7 @@ describe('auth.casosDeUso - iniciarSesion', () => {
       .toMatchObject({ message: 'Correo o contraseña incorrectos', status: 401 })
   })
 
-  it('retorna token y usuario cuando credenciales son validas', async () => {
+  it('UNIT-AUTH-02 iniciarSesion retorna token y perfil cuando las credenciales son correctas', async () => {
     var bcrypt = await import('bcrypt')
     var passHash = await bcrypt.default.hash('Clave123*', 10)
 

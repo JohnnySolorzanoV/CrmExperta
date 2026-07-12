@@ -15,7 +15,7 @@ describe('documento.casosDeUso', () => {
     vi.clearAllMocks()
   })
 
-  it('subirDocumento falla con extension no permitida', async () => {
+  it('UNIT-DOCUMENTOS-01 subirDocumento rechaza extensiones fuera de la lista permitida', async () => {
     var { subirDocumento } = await import('../../modulos/documentos/documento.casosDeUso.js')
     await expect(
       subirDocumento({
@@ -26,7 +26,7 @@ describe('documento.casosDeUso', () => {
     ).rejects.toMatchObject({ status: 400 })
   })
 
-  it('subirDocumento crea con extension normalizada', async () => {
+  it('UNIT-DOCUMENTOS-02 subirDocumento normaliza la extension y delega la creacion del registro', async () => {
     repo.crear.mockResolvedValue({ id: 10, extension: 'pdf' })
     var { subirDocumento } = await import('../../modulos/documentos/documento.casosDeUso.js')
     var r = await subirDocumento({

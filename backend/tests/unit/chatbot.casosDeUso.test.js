@@ -23,12 +23,12 @@ describe('chatbot.casosDeUso', () => {
     vi.clearAllMocks()
   })
 
-  it('consultar exige mensaje', async () => {
+  it('UNIT-CHATBOT-01 consultar rechaza solicitudes cuando el mensaje esta vacio', async () => {
     var { consultar } = await import('../../modulos/chatbot/chatbot.casosDeUso.js')
     await expect(consultar({ idUsuario: 1, mensaje: '' })).rejects.toMatchObject({ status: 400 })
   })
 
-  it('consultar detecta accion agendar desde JSON', async () => {
+  it('UNIT-CHATBOT-02 consultar interpreta la accion de agendar cuando la IA responde JSON valido', async () => {
     repo.obtenerHistorial.mockResolvedValue([])
     repo.crear.mockResolvedValue({ id: 55 })
     repo.actualizarLog.mockResolvedValue(undefined)

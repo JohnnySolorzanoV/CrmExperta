@@ -14,13 +14,13 @@ describe('auth.repositorio', () => {
     return resetearBasePruebas()
   })
 
-  it('buscarPorCorreo retorna null si no hay filas', async () => {
+  it('UNIT-AUTH-01 buscarPorCorreo retorna null cuando no existe coincidencia', async () => {
     if (!dbLista) return
     var r = await repo.buscarPorCorreo('x@test.com')
     expect(r).toBeNull()
   })
 
-  it('buscarPorIdentificacion retorna Usuario cuando existe', async () => {
+  it('UNIT-AUTH-02 buscarPorIdentificacion retorna la entidad de usuario cuando existe', async () => {
     if (!dbLista) return
     var ids = await sembrarUsuariosBase()
     var user = await queryTest('SELECT identificacion FROM Usuario WHERE id = $1', [ids.clienteUsuarioId])
@@ -30,7 +30,7 @@ describe('auth.repositorio', () => {
     expect(r?.correo).toBe('cliente@test.com')
   })
 
-  it('detectarRoles acumula roles encontrados', async () => {
+  it('UNIT-AUTH-03 detectarRoles devuelve unicamente los roles registrados para cada usuario', async () => {
     if (!dbLista) return
     var ids = await sembrarUsuariosBase()
     var rolesAdmin = await repo.detectarRoles(ids.adminUsuarioId)

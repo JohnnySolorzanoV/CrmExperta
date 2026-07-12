@@ -16,7 +16,7 @@ describe('Integracion /api/usuarios', () => {
     await sembrarUsuariosBase()
   })
 
-  it('GET /api/usuarios lista usuarios', async () => {
+  it('INT-USUARIOS-01 GET /api/usuarios responde con una coleccion de usuarios', async () => {
     if (!dbLista) return
     var r = await request(APP).get('/api/usuarios')
     expect(r.status).toBe(200)

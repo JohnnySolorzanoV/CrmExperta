@@ -33,19 +33,19 @@ describe('cita.repositorio', () => {
     })()
   })
 
-  it('buscarPorId retorna null si no existe', async () => {
+  it('UNIT-CITAS-01 buscarPorId retorna null cuando la cita no existe', async () => {
     if (!dbLista) return
     var r = await repo.buscarPorId(100)
     expect(r).toBeNull()
   })
 
-  it('slotOcupado retorna true cuando hay registros activos', async () => {
+  it('UNIT-CITAS-02 slotOcupado retorna true cuando existe una cita activa asociada al slot', async () => {
     if (!dbLista) return
     var r = await repo.slotOcupado(calendarioId)
     expect(r).toBe(true)
   })
 
-  it('existeConflictoAbogado agrega exclusion cuando se envia id de cita', async () => {
+  it('UNIT-CITAS-03 existeConflictoAbogado permite excluir la cita actual en una reprogramacion', async () => {
     if (!dbLista) return
     var sinExcluir = await repo.existeConflictoAbogado(ids.abogadoPkId, '2026-08-01T10:50:00.000Z')
     var excluyendo = await repo.existeConflictoAbogado(ids.abogadoPkId, '2026-08-01T10:50:00.000Z', citaId)
@@ -53,7 +53,7 @@ describe('cita.repositorio', () => {
     expect(excluyendo).toBe(false)
   })
 
-  it('eliminar retorna false cuando no borra filas', async () => {
+  it('UNIT-CITAS-04 eliminar retorna false cuando no se afecta ningun registro', async () => {
     if (!dbLista) return
     var r = await repo.eliminar(888888)
     expect(r).toBe(false)

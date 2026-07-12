@@ -22,7 +22,7 @@ describe('calendario.repositorio', () => {
     slotId = slot.rows[0].id
   })
 
-  it('buscarPorId retorna slot o null', async () => {
+  it('UNIT-CALENDARIO-01 buscarPorId retorna el slot cuando existe y null en caso contrario', async () => {
     if (!dbLista) return
     var ok = await repo.buscarPorId(slotId)
     var no = await repo.buscarPorId(99999)
