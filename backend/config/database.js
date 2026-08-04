@@ -45,6 +45,23 @@ export async function ejecutarConsulta(txt, prms = []) {
   }
 }
 
+// Ejecuta varias operaciones en una transacción. `task` recibe un cliente y debe
+// usar `cliente.query(...)`. Si algo falla, todo se revierte.
+export async function ejecutarEnTransaccion(task) {
+  var cnn = await obtenerPool().connect()
+  try {
+    await cnn.query('BEGIN')
+    var resultado = await task(cnn)
+    await cnn.query('COMMIT')
+    return resultado
+  } catch (e) {
+    try { await cnn.query('ROLLBACK') } catch (_) { /* pool puede estar roto */ }
+    throw e
+  } finally {
+    cnn.release()
+  }
+}
+
 // prueba solo la conexión a la BD para el arranque de la app
 export async function probarConexion() {
   try {

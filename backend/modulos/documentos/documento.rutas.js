@@ -116,8 +116,13 @@ router.post('/', verificarToken, verificarRol('abogado', 'administrador'), subir
       payload.tamaño = req.file.size
     }
 
+    var esAdmin = Array.isArray(req.usuario.roles) && req.usuario.roles.includes('administrador')
+    if (!esAdmin) {
+      payload.idUsuarioAbogado = req.usuario.id
+    }
+
     var d = await subirDocumento(payload)
-    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Documento', recursoId: d.id || null, detalle: 'subida de documento' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Documento', recursoId: d.id || null, detalle: 'subida de documento' })
     res.status(201).json({ mensaje: 'Documento subido', documento: d })
   } catch (error) { next(error) }
 })
@@ -138,7 +143,7 @@ router.delete('/:id', verificarToken, verificarDuenoDocumento, verificarRol('abo
       fs.unlinkSync(resolucion.rutaAbsoluta)
     }
     var R = await eliminarDocumento(id)
-    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Documento', recursoId: id, detalle: 'eliminacion de documento y de su archivo' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Documento', recursoId: id, detalle: 'eliminacion de documento y de su archivo' })
     res.json({ ...R, archivoEliminado: true })
   } catch (error) { next(error) }
 })

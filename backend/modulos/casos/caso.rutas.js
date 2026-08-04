@@ -41,7 +41,7 @@ router.get('/abogado/:idAbogado', verificarToken, verificarMismoUsuarioOTarget(r
 router.post('/', verificarToken, verificarRol('abogado', 'administrador'), async (req, res, next) => {
   try {
     var c = await crearCaso(req.body)
-    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Caso', recursoId: c.id, detalle: 'creacion de caso' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Caso', recursoId: c.id, detalle: 'creacion de caso' })
     res.status(201).json({ mensaje: 'Caso creado', caso: c })
   } catch (error) { next(error) }
 })
@@ -52,7 +52,7 @@ router.put('/:id/estado', verificarToken, verificarDuenoCaso, verificarRol('abog
     var previo = await obtenerCaso(Number(req.params.id))
     var c = await actualizarEstadoCaso(Number(req.params.id), estado)
     log.info('CASO_ESTADO_ACTUALIZADO', { casoId: c.id, desde: previo.estadoCaso, hacia: estado })
-    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Caso', recursoId: c.id, detalle: `cambio de estado: ${previo.estadoCaso} -> ${estado}` }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Caso', recursoId: c.id, detalle: `cambio de estado: ${previo.estadoCaso} -> ${estado}` })
     res.json({ mensaje: 'Estado actualizado', caso: c })
   } catch (error) { next(error) }
 })
@@ -62,7 +62,7 @@ router.put('/:id/notas-conclusiones', verificarToken, verificarDuenoCaso, verifi
     var { notas, conclusiones } = req.body
     var c = await actualizarNotasConclusionesCaso(Number(req.params.id), { notas, conclusiones })
     log.info('NOTAS_CASO_ACTUALIZADAS', { casoId: c.id })
-    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Caso', recursoId: c.id, detalle: 'actualizacion de notas y conclusiones del caso' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Caso', recursoId: c.id, detalle: 'actualizacion de notas y conclusiones del caso' })
     res.json({ mensaje: 'Notas y conclusiones actualizadas', caso: c })
   } catch (error) { next(error) }
 })

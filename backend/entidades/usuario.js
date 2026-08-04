@@ -6,5 +6,7 @@ export class Usuario {
     this.correo = x.correo
     this.contrasena = x.contrasena
     this.fechaRegistro = x.fechaRegistro
+    this.activo = x.activo
+    this.resetTokenExpira = x.resetTokenExpira
   }
 }

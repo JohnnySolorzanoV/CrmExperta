@@ -25,7 +25,7 @@ router.post('/registro', async (req, res, next) => {
       recurso: 'Cliente',
       recursoId: user_created.id,
       detalle: 'registro de cuenta de cliente'
-    }).catch(() => {})
+    })
 
     res.status(201).json({
       mensaje: 'Cuenta de cliente creada',
@@ -59,7 +59,7 @@ router.put('/:idUsuario', verificarToken, verificarRol('administrador', 'cliente
       return res.status(403).json({ error: 'No tienes permiso para modificar este perfil' })
     }
     var cliente = await actualizarCliente(Number(req.params.idUsuario), req.body)
-    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Cliente', recursoId: cliente.id, detalle: 'actualizacion de datos del cliente' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Cliente', recursoId: cliente.id, detalle: 'actualizacion de datos del cliente' })
     res.json({ mensaje: 'Cliente actualizado', cliente })
   } catch (error) { next(error) }
 })
@@ -69,7 +69,7 @@ router.put('/:idUsuario/estado', verificarToken, verificarRol('administrador'), 
   try {
     var activo = Boolean(req.body.activo)
     var cliente = await cambiarEstadoCliente(Number(req.params.idUsuario), activo)
-    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Cliente', recursoId: cliente.id, detalle: activo ? 'cliente activado' : 'cliente desactivado (baja logica)' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Cliente', recursoId: cliente.id, detalle: activo ? 'cliente activado' : 'cliente desactivado (baja logica)' })
     res.json({ mensaje: activo ? 'Cliente reactivado' : 'Cliente desactivado', cliente })
   } catch (error) { next(error) }
 })

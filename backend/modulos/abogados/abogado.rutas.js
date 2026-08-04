@@ -32,7 +32,7 @@ router.get('/especialidad/:especialidad', verificarToken, async (req, res, next)
 router.post('/', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
     var a = await crearAbogado(req.body)
-    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Abogado', recursoId: a.id, detalle: 'alta de abogado' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Abogado', recursoId: a.id, detalle: 'alta de abogado' })
     res.status(201).json({ mensaje: 'Abogado creado', abogado: a })
   } catch (error) { next(error) }
 })
@@ -40,7 +40,7 @@ router.post('/', verificarToken, verificarRol('administrador'), async (req, res,
 router.put('/:id', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
     var a = await actualizarAbogado(Number(req.params.id), req.body)
-    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Abogado', recursoId: a.id, detalle: 'actualizacion de abogado' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Abogado', recursoId: a.id, detalle: 'actualizacion de abogado' })
     res.json({ mensaje: 'Abogado actualizado', abogado: a })
   } catch (error) { next(error) }
 })
@@ -48,7 +48,7 @@ router.put('/:id', verificarToken, verificarRol('administrador'), async (req, re
 router.delete('/:id', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
     var R = await eliminarAbogado(Number(req.params.id))
-    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Abogado', recursoId: Number(req.params.id), detalle: 'eliminacion de abogado' }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Abogado', recursoId: Number(req.params.id), detalle: 'eliminacion de abogado' })
     res.json(R)
   } catch (error) { next(error) }
 })

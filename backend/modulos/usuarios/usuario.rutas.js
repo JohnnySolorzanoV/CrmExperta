@@ -27,6 +27,7 @@ router.put('/:id', verificarToken, verificarMismoUsuarioOTarget(req => req.param
   try {
     var { nombre, correo } = req.body
     var u = await actualizarUsuario(Number(req.params.id), { nombre, correo })
+    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Usuario', recursoId: u.id, detalle: 'actualizacion de datos basicos' })
     res.json({ mensaje: 'Usuario actualizado', usuario: u })
   } catch (error) { next(error) }
 })
@@ -34,6 +35,7 @@ router.put('/:id', verificarToken, verificarMismoUsuarioOTarget(req => req.param
 router.delete('/:id', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
     var R = await eliminarUsuario(Number(req.params.id))
+    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Usuario', recursoId: Number(req.params.id), detalle: 'eliminacion de usuario' })
     res.json(R)
   } catch (error) { next(error) }
 })
@@ -42,7 +44,7 @@ router.post('/:id/roles', verificarToken, verificarRol('administrador'), async (
   try {
     var { rol, numLicencia, especialidad } = req.body
     var R = await agregarRol(Number(req.params.id), rol, { numLicencia, especialidad })
-    await registrarAuditoria({ req, accion: 'ASIGNAR', recurso: 'Rol', recursoId: Number(req.params.id), detalle: 'asignar rol: ' + rol }).catch(() => {})
+    await registrarAuditoria({ req, accion: 'ASIGNAR', recurso: 'Rol', recursoId: Number(req.params.id), detalle: 'asignar rol: ' + rol })
     res.json(R)
   } catch (error) { next(error) }
 })
@@ -50,6 +52,7 @@ router.post('/:id/roles', verificarToken, verificarRol('administrador'), async (
 router.delete('/:id/roles/:rol', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
     var R = await removerRol(Number(req.params.id), req.params.rol)
+    await registrarAuditoria({ req, accion: 'QUITAR', recurso: 'Rol', recursoId: Number(req.params.id), detalle: 'quitar rol: ' + req.params.rol })
     res.json(R)
   } catch (error) { next(error) }
 })

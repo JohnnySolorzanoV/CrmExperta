@@ -40,20 +40,23 @@ export async function buscarPorEspecialidad(esp) {
 }
 
 export async function crear(datos) {
-  var r1 = await db.ejecutarConsulta(
-    `INSERT INTO Usuario (identificacion, nombre, correo, contrasena)
-     VALUES ($1, $2, $3, $4) RETURNING id`,
-    [datos.identificacion, datos.nombre, datos.correo, datos.contrasena]
-  )
-  var idU = r1.rows[0].id
+  return db.ejecutarEnTransaccion(async (cnn) => {
+    var r1 = await cnn.query(
+      `INSERT INTO Usuario (identificacion, nombre, correo, contrasena)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [datos.identificacion, datos.nombre, datos.correo, datos.contrasena]
+    )
+    var idU = r1.rows[0].id
 
-  // ahora se crea el abogado con el id del usuario recién creado
-  await db.ejecutarConsulta(
-    `INSERT INTO Abogado (id_usuario, especialidad, num_licencia) VALUES ($1, $2, $3)`,
-    [idU, datos.especialidad, datos.numLicencia]
-  )
+    // Si falla la creación del abogado, la transacción revierte el usuario para
+    // no dejar registros huérfanos.
+    await cnn.query(
+      `INSERT INTO Abogado (id_usuario, especialidad, num_licencia) VALUES ($1, $2, $3)`,
+      [idU, datos.especialidad, datos.numLicencia]
+    )
 
-  return buscarPorId(idU)
+    return idU
+  }).then((idU) => buscarPorId(idU))
 }
 
 export async function actualizar(id, datos) {

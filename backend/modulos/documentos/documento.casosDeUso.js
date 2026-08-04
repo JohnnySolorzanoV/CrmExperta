@@ -1,5 +1,6 @@
 import * as docRepo from './documento.repositorio.js'
 import { Documento as Doc } from '../../entidades/documento.js'
+import { ejecutarConsulta } from '../../config/database.js'
 
 var EXT_PERMITIDAS = ['pdf', 'doc', 'docx', 'jpg', 'png', 'txt']
 var MAX_SIZE = 10 * 1024 * 1024
@@ -15,9 +16,26 @@ export async function obtenerDocumento(id) {
   return d
 }
 
-export async function subirDocumento({ idCaso, nombreDocumento, descripcion, extension, rutaArchivo, tamaño }) {
+// Un abogado solo puede subir documentos a casos en los que esté asignado.
+async function validarAbogadoDelCaso(idCaso, idUsuario) {
+  var r = await ejecutarConsulta(
+    `SELECT 1 FROM Caso cs
+     JOIN Abogado ab ON ab.id = cs.id_abogado
+     WHERE cs.id = $1 AND ab.id_usuario = $2`,
+    [idCaso, idUsuario]
+  )
+  if (r.rows.length === 0) {
+    throw Object.assign(new Error('No estas asignado a este caso'), { status: 403 })
+  }
+}
+
+export async function subirDocumento({ idCaso, nombreDocumento, descripcion, extension, rutaArchivo, tamaño, idUsuarioAbogado }) {
   if (!idCaso || !nombreDocumento || !extension) {
     throw Object.assign(new Error('Faltan datos del documento'), { status: 400 })
+  }
+
+  if (idUsuarioAbogado != null) {
+    await validarAbogadoDelCaso(idCaso, idUsuarioAbogado)
   }
 
   var ext = extension.toLowerCase().replace('.', '')

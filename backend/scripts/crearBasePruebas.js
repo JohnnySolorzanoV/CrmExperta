@@ -6,16 +6,26 @@ import '../config/env.js'
 
 var __dirname = dirname(fileURLToPath(import.meta.url))
 
-var DB_URL = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
+var DB_URL = process.env.DATABASE_URL_TEST
 if (!DB_URL) {
-  console.error('Falta DATABASE_URL_TEST (o DATABASE_URL)')
+  console.error('Falta DATABASE_URL_TEST. Nunca usar DATABASE_URL para pruebas.')
   process.exit(1)
 }
 
 var url = new URL(DB_URL)
-var dbDestino = url.pathname ? url.pathname.slice(1) : 'crm_experta_test'
+var dbDestino = url.pathname ? url.pathname.slice(1) : ''
 if (!dbDestino) {
   console.error('La URL de prueba no indica una base de datos destino')
+  process.exit(1)
+}
+
+// Seguridad: bloquear antes de cualquier DROP si el nombre no es claramente de pruebas.
+if (!/_(test|testing|prueba)s?$/i.test(dbDestino) && dbDestino !== 'postgres' ) {
+  console.error('INSEGURO: la base de prueba debe terminar en _test (o similar). Recibido: "' + dbDestino + '"')
+  process.exit(1)
+}
+if (dbDestino === 'postgres') {
+  console.error('INSEGURO: no se puede usar la base "postgres" como base de pruebas')
   process.exit(1)
 }
 

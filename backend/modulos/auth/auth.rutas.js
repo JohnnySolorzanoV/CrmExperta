@@ -19,9 +19,19 @@ router.post('/login', async (req, res, next) => {
       accion: 'LOGIN',
       recurso: 'Sesión',
       detalle: 'inicio de sesion exitoso'
-    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message }))
+    })
     res.json(LOGIN_RESULT)
-  } catch (error) { next(error) }
+  } catch (error) {
+    await registrarAuditoria({
+      req: { ip: req.ip, usuario: null },
+      accion: 'LOGIN_FALLIDO',
+      recurso: 'Sesión',
+      recusoId: null,
+      detalle: 'intento de inicio de sesion fallido para: ' + (req.body?.correo || '?'),
+      resultado: 'fallido'
+    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message }))
+    next(error)
+  }
 })
 
 router.post('/recuperar-contrasena', async (req, res, next) => {
@@ -46,6 +56,12 @@ router.post('/restablecer-contrasena', async (req, res, next) => {
     }
 
     var RESET_RESULT = await restablecerContrasena({ token, nuevaContrasena })
+    await registrarAuditoria({
+      req,
+      accion: 'CONTRASENA_RESTABLECIDA',
+      recurso: 'Usuario',
+      detalle: 'contraseña restablecida mediante token de recuperacion'
+    })
     res.json(RESET_RESULT)
   } catch (error) { next(error) }
 })

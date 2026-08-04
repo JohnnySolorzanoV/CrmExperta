@@ -1,8 +1,6 @@
 import express from 'express'
 import { default as corsMod } from 'cors'
 import './config/env.js'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { probarConexion, iniciarConexionConReintentos, cerrarConexiones } from './config/database.js'
 import { manejoDeErrores } from './config/manejoDeErrores.js'
 import { requestLogger, log } from './config/logger.js'
@@ -25,9 +23,6 @@ var API_PREFIX = normalizarPrefijoApi(process.env.API_PREFIX)
 APP.use(corsMod())
 APP.use(express.json())
 APP.use(requestLogger())
-var __filename = fileURLToPath(import.meta.url)
-var __dirname = path.dirname(__filename)
-APP.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 var MODULOS_ACTIVOS = [
   { ruta: '/auth', handler: authRutas },

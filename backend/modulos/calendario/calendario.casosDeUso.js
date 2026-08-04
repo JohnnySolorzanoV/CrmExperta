@@ -1,9 +1,9 @@
 import * as calRepo from './calendario.repositorio.js'
 import { Calendario as Cal } from '../../entidades/calendario.js'
 import { ejecutarConsulta } from '../../config/database.js'
-import { normalizarFechaIsoUTC } from '../../config/datetime.js'
+import { normalizarFechaIsoUTC, partesEnGuayaquil } from '../../config/datetime.js'
 
-// Working hours (start hours of 1-hour slots):
+// Working hours (start hours of 1-hour slots) en America/Guayaquil:
 //   Mornings   10:00 - 12:00  -> start hours 10, 11
 //   Afternoons 15:00 - 17:00  -> start hours 15, 16
 var HORAS_ATENCION = [10, 11, 15, 16]
@@ -22,10 +22,10 @@ function toUtcHourKey(value) {
 }
 
 function esHorarioAtencion(fechaIso) {
-  var dt = new Date(fechaIso)
-  if (Number.isNaN(dt.getTime())) return false
-  var dia = dt.getDay() // 0 domingo, 6 sabado
-  var hora = dt.getHours()
+  var partes = partesEnGuayaquil(fechaIso)
+  if (!partes || partes.dia == null || partes.hora == null) return false
+  var dia = partes.dia // 0 domingo, 6 sabado
+  var hora = partes.hora
   return dia >= 1 && dia <= 5 && HORAS_ATENCION.includes(hora)
 }
 
@@ -95,9 +95,8 @@ export var listarDisponibilidadAbogado = async (idUsuario) => {
   var iteraciones = 0
   var maxIteraciones = 24 * 60
   while (filtradosCalendario.length + resultados.length < 20 && iteraciones < maxIteraciones) {
-    var dia = cursor.getDay() // 0 domingo, 6 sabado
-    var hora = cursor.getHours()
-    var esLaboral = dia >= 1 && dia <= 5 && HORAS_ATENCION.includes(hora)
+    var partes = partesEnGuayaquil(cursor.toISOString())
+    var esLaboral = partes && partes.dia >= 1 && partes.dia <= 5 && HORAS_ATENCION.includes(partes.hora)
     var fechaUtcIso = new Date(cursor).toISOString()
     var fechaUtcKey = toUtcHourKey(fechaUtcIso)
 
@@ -146,7 +145,30 @@ export async function crearSlot({ idAbogado, fechaEvento, descripcion }) {
   return normalizarSlotFecha(creado)
 }
 
-export var eliminarSlot = async (id) => {
+// Verifica la pertenencia de un slot a un abogado (por id de usuario).
+async function slotPerteneceA(id, idUsuarioAbogado) {
+  var r = await ejecutarConsulta(
+    `SELECT cal.id
+     FROM Calendario cal
+     JOIN Abogado ab ON ab.id = cal.id_abogado
+     WHERE cal.id = $1 AND ab.id_usuario = $2`,
+    [id, idUsuarioAbogado]
+  )
+  return r.rows.length > 0
+}
+
+export var obtenerSlot = async (id) => {
+  var r = await calRepo.buscarPorId(id)
+  if (!r) throw Object.assign(new Error('Slot no encontrado'), { status: 404 })
+  return normalizarSlotFecha(r)
+}
+
+export var eliminarSlot = async (id, idUsuarioAbogado = null) => {
+  if (idUsuarioAbogado != null) {
+    if (!(await slotPerteneceA(id, idUsuarioAbogado))) {
+      throw Object.assign(new Error('No tienes acceso a este horario'), { status: 403 })
+    }
+  }
   var r = await calRepo.eliminar(id)
   if (!r) throw Object.assign(new Error('Slot no encontrado'), { status: 404 })
   return { mensaje: 'Slot eliminado' }

@@ -1,7 +1,9 @@
 import { ejecutarConsulta } from '../../config/database.js'
 import { Usuario } from '../../entidades/usuario.js'
 
-var SQL_USR = `SELECT id, identificacion, nombre, correo, contrasena, fecha_registro as "fechaRegistro"`
+var SQL_USR = `SELECT id, identificacion, nombre, correo, contrasena,
+               fecha_registro as "fechaRegistro", activo,
+               reset_token_hash, reset_token_expira as "resetTokenExpira"`
 
 export async function buscarPorCorreo(mail) {
   var r = await ejecutarConsulta(`${SQL_USR} FROM Usuario WHERE correo = $1`, [mail])
@@ -47,7 +49,8 @@ export async function detectarRoles(idU) {
 export async function guardarTokenRecuperacion(idUsuario, tokenHash) {
   await ejecutarConsulta(
     `UPDATE Usuario
-     SET reset_token_hash = $1
+     SET reset_token_hash = $1,
+         reset_token_expira = NOW() + INTERVAL '1 hour'
      WHERE id = $2`,
     [tokenHash, idUsuario]
   )
@@ -56,7 +59,9 @@ export async function guardarTokenRecuperacion(idUsuario, tokenHash) {
 export async function buscarPorTokenResetHashValido(tokenHash) {
   var r = await ejecutarConsulta(
     `${SQL_USR} FROM Usuario
-     WHERE reset_token_hash = $1`,
+     WHERE reset_token_hash = $1
+       AND reset_token_expira IS NOT NULL
+       AND reset_token_expira > NOW()`,
     [tokenHash]
   )
   if (r.rows.length === 0) return null
@@ -67,7 +72,8 @@ export async function actualizarContrasenaYLimpiarToken(idUsuario, contrasenaHas
   await ejecutarConsulta(
     `UPDATE Usuario
      SET contrasena = $1,
-         reset_token_hash = NULL
+         reset_token_hash = NULL,
+         reset_token_expira = NULL
      WHERE id = $2`,
     [contrasenaHash, idUsuario]
   )

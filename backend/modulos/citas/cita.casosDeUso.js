@@ -3,7 +3,7 @@ import { Cita } from '../../entidades/cita.js'
 import { ejecutarConsulta } from '../../config/database.js'
 import { enviarEmail } from '../../config/google.js'
 import { log } from '../../config/logger.js'
-import { normalizarFechaIsoUTC } from '../../config/datetime.js'
+import { normalizarFechaIsoUTC, partesEnGuayaquil } from '../../config/datetime.js'
 
 // ─── Notification helpers ────────────────────────────────────────────────────
 
@@ -162,12 +162,15 @@ function validarFranjaAtencion(fechaIso) {
   if (Number.isNaN(d.getTime()) || d.getTime() <= Date.now()) {
     throw Object.assign(new Error('La fecha de la cita no puede estar en el pasado'), { status: 400 })
   }
-  var dia = d.getDay()
-  if (dia === 0 || dia === 6) {
+  // Dia y hora evaluados en America/Guayaquil para no depender del servidor.
+  var partes = partesEnGuayaquil(fechaIso)
+  if (!partes || partes.dia == null || partes.hora == null) {
+    throw Object.assign(new Error('La fecha de la cita no tiene un formato valido.'), { status: 400 })
+  }
+  if (partes.dia === 0 || partes.dia === 6) {
     throw Object.assign(new Error('No se pueden agendar citas en fines de semana'), { status: 400 })
   }
-  var hora = d.getHours()
-  if (hora < HORA_INICIO_ATENCION || hora >= HORA_FIN_ATENCION) {
+  if (partes.hora < HORA_INICIO_ATENCION || partes.hora >= HORA_FIN_ATENCION) {
     throw Object.assign(new Error('La hora esta fuera del horario de atencion (08:00 - 18:00)'), { status: 400 })
   }
 }
@@ -270,8 +273,12 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
  * @param {string} [opts.canceladoPor] - 'cliente' | 'abogado' | 'administrador'
  */
 export var cancelarCita = async (id, { motivoCancelacion, canceladoPor } = {}) => {
+  var previa = await ctaRepo.buscarPorId(id)
+  if (!previa) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+  if (previa.estadoCita === 'completada' || previa.estadoCita === 'cancelada' || previa.estadoCita === 'rechazada') {
+    throw Object.assign(new Error('Esta cita ya no se puede cancelar'), { status: 409 })
+  }
   var c = await ctaRepo.cancelarConMotivo(id, motivoCancelacion, canceladoPor)
-  if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
 
   log.info('CITA_CANCELADA', { citaId: id, motivo: motivoCancelacion, por: canceladoPor })
 
@@ -283,14 +290,22 @@ export var cancelarCita = async (id, { motivoCancelacion, canceladoPor } = {}) =
 }
 
 export var completarCita = async (id) => {
+  var previa = await ctaRepo.buscarPorId(id)
+  if (!previa) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+  if (previa.estadoCita !== 'confirmada') {
+    throw Object.assign(new Error('Solo se puede completar una cita confirmada'), { status: 409 })
+  }
   var c = await ctaRepo.actualizarEstado(id, 'completada')
-  if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
   return c
 }
 
 export var aceptarCita = async (id) => {
+  var previa = await ctaRepo.buscarPorId(id)
+  if (!previa) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+  if (previa.estadoCita !== 'pendiente') {
+    throw Object.assign(new Error('Solo se puede aceptar una cita pendiente'), { status: 409 })
+  }
   var c = await ctaRepo.actualizarEstado(id, 'confirmada')
-  if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
 
   notificarConfirmacion(c).catch(e => {
     log.error('NOTIFICACION_ACEPTAR_ERR', { citaId: id, err: e.message })
@@ -299,9 +314,22 @@ export var aceptarCita = async (id) => {
   return c
 }
 
+export var rechazarCita = async (id) => {
+  var previa = await ctaRepo.buscarPorId(id)
+  if (!previa) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+  if (previa.estadoCita !== 'pendiente') {
+    throw Object.assign(new Error('Solo se puede rechazar una cita pendiente'), { status: 409 })
+  }
+  return ctaRepo.actualizarEstado(id, 'rechazada')
+}
+
 export async function reprogramarCita(id, fechaHoraCopia, idCalendario) {
   var existe = await ctaRepo.buscarPorId(id)
   if (!existe) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+
+  if (existe.estadoCita === 'completada' || existe.estadoCita === 'cancelada' || existe.estadoCita === 'rechazada') {
+    throw Object.assign(new Error('Una cita completada, cancelada o rechazada no se puede reprogramar'), { status: 409 })
+  }
 
   var fechaCanonica = normalizarFechaIsoUTC(fechaHoraCopia)
   if (!fechaCanonica) {

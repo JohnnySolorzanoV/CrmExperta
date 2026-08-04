@@ -80,6 +80,16 @@ export async function verificarDuenoCita(req, res, next, param = 'id') {
   next()
 }
 
+// Permite solo al abogado asignado (o al administrador) operar sobre la cita.
+export async function verificarAbogadoDeCita(req, res, next, param = 'id') {
+  if (!req.usuario) return res.status(401).json({ error: 'No autenticado' })
+  var fila = await duenosDeCita(Number(req.params[param]))
+  if (!fila) return res.status(404).json({ error: 'Cita no encontrada' })
+  if (esAdministrador(req.usuario)) return next()
+  if (esElMismoUsuario(req.usuario, fila.abogado_usuario)) return next()
+  return noAutorizado(res)
+}
+
 export async function verificarDuenoCaso(req, res, next, param = 'id') {
   if (!req.usuario) return res.status(401).json({ error: 'No autenticado' })
   var fila = await duenosDeCaso(Number(req.params[param]))

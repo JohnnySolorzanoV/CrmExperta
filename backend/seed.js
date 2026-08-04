@@ -7,8 +7,14 @@ import { crearConfigPool } from './config/database.js'
 
 var __dirname = dirname(fileURLToPath(import.meta.url))
 
-var CORREO_ADMIN = 'admin@crm.com'
-var PASS_ADMIN = 'admin123'
+var CORREO_ADMIN = process.env.ADMIN_CORREO || 'admin@crm.com'
+var PASS_ADMIN = process.env.ADMIN_CONTROSENA || process.env.ADMIN_PASS || 'admin123'
+var NODE_ENV = process.env.NODE_ENV || 'development'
+
+// Seguridad: las credenciales por defecto solo son aceptables en desarrollo.
+if (NODE_ENV !== 'development' && (CORREO_ADMIN === 'admin@crm.com' || PASS_ADMIN === 'admin123')) {
+  console.warn('ADVERTENCIA: usando credenciales de administrador por defecto. Define ADMIN_CORREO/ADMIN_PASS en produccion.')
+}
 
 async function verificarTablas(POOL) {
   var resultado = await POOL.query(

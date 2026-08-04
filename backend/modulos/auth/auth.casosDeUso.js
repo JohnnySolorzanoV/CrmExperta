@@ -31,6 +31,10 @@ export async function iniciarSesion({ correo, contrasena }) {
     throw Object.assign(new Error('Correo o contraseña incorrectos'), { status: 401 })
   }
 
+  if (userr.activo === false) {
+    throw Object.assign(new Error('Esta cuenta ha sido desactivada'), { status: 403 })
+  }
+
   var PASS_val = await bcryptMod.compare(contrasena, userr.contrasena)
   if (!PASS_val) throw Object.assign(new Error('Correo o contraseña incorrectos'), { status: 401 })
 

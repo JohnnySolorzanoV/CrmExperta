@@ -27,8 +27,16 @@ router.post('/agendar', verificarToken, async (req, res, next) => {
   try {
     // recibe el resumen generado por la AI y agenda la cita
     var { idCliente, idAbogado, resumen, tipoConsulta, motivo, fechaHoraCopia, idCalendario } = req.body
-    if (!idCliente || !idAbogado || !resumen) {
-      throw Object.assign(new Error('Faltan datos para agendar desde chat (cliente, abogado, resumen)'), { status: 400 })
+    if (!idAbogado || !resumen) {
+      throw Object.assign(new Error('Faltan datos para agendar desde chat (abogado, resumen)'), { status: 400 })
+    }
+
+    // Un cliente solo puede agendar para sí mismo; el administrador decide su target.
+    var esAdmin = Array.isArray(req.usuario.roles) && req.usuario.roles.includes('administrador')
+    if (esAdmin) {
+      if (!idCliente) throw Object.assign(new Error('Falta el cliente al agendar desde chat'), { status: 400 })
+    } else {
+      idCliente = req.usuario.id
     }
 
     // crear la cita

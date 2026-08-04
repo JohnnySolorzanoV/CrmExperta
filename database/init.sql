@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS Usuario (
     correo VARCHAR(100) UNIQUE NOT NULL,
     contrasena VARCHAR(255) NOT NULL,
     reset_token_hash VARCHAR(255),
+    reset_token_expira TIMESTAMP,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -112,3 +113,7 @@ CREATE TABLE IF NOT EXISTS auditoria_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria_logs (fecha);
 CREATE INDEX IF NOT EXISTS idx_auditoria_recurso ON auditoria_logs (recurso, recurso_id);
+
+-- Migración idempotente para bases existentes: expiración del token de
+-- recuperación de contraseña (RF17). En CREATE TABLE anterior también se define.
+ALTER TABLE Usuario ADD COLUMN IF NOT EXISTS reset_token_expira TIMESTAMP;
