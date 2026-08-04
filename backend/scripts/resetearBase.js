@@ -21,8 +21,9 @@ if (!dbDestino) {
   process.exit(1)
 }
 
+var usaSsl = /ondigitalocean\.com/i.test(DB_URL)
 var urlAdmin = new URL(DB_URL)
-urlAdmin.pathname = '/postgres'
+urlAdmin.pathname = usaSsl ? '/defaultdb' : '/postgres'
 urlAdmin.searchParams.delete('sslmode')
 
 async function baseExiste(cliente, nombre) {
@@ -32,7 +33,10 @@ async function baseExiste(cliente, nombre) {
 
 async function main() {
   console.warn('ATENCION: se eliminara la base "' + dbDestino + '" y sus datos.')
-  var admin = new pg.Client({ connectionString: urlAdmin.toString(), ssl: false })
+  var admin = new pg.Client({
+    connectionString: urlAdmin.toString(),
+    ssl: usaSsl ? { rejectUnauthorized: false } : false
+  })
   await admin.connect()
 
   if (await baseExiste(admin, dbDestino)) {
