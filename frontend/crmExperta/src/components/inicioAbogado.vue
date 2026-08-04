@@ -494,7 +494,7 @@ async function crearCasoDesdeCita() {
         <h3 class="ia-modal-title">Confirmar cancelación</h3>
         <p class="ia-modal-meta">
           Esta acción no se puede deshacer. El cliente y el abogado recibirán un correo de notificación
-          y el evento de Google Calendar será eliminado.
+          y la cita será cancelada en el sistema.
         </p>
 
         <div class="ia-field">

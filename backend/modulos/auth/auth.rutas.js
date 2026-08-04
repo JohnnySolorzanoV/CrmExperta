@@ -1,5 +1,7 @@
 import { Router as routerExpress } from 'express'
 import { iniciarSesion, recuperarContrasena, restablecerContrasena } from './auth.casosDeUso.js'
+import { registrarAuditoria } from '../auditoria/auditoria.servicio.js'
+import { log } from '../../config/logger.js'
 
 var router = routerExpress()
 
@@ -12,6 +14,12 @@ router.post('/login', async (req, res, next) => {
     }
 
     var LOGIN_RESULT = await iniciarSesion({ correo, contrasena })
+    await registrarAuditoria({
+      req: { ip: req.ip, usuario: LOGIN_RESULT.usuario },
+      accion: 'LOGIN',
+      recurso: 'Sesión',
+      detalle: 'inicio de sesion exitoso'
+    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message }))
     res.json(LOGIN_RESULT)
   } catch (error) { next(error) }
 })

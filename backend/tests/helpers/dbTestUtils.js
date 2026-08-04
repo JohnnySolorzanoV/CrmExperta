@@ -7,17 +7,17 @@ import bcrypt from 'bcrypt'
 var __filename = fileURLToPath(import.meta.url)
 var __dirname = path.dirname(__filename)
 
-var DB_URL = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
+// Las pruebas de integración deben correr SIEMPRE contra una base aislada, nunca
+// contra la de producción. Si no se define DATABASE_URL_TEST, se aborta con error.
+var DB_URL = process.env.DATABASE_URL_TEST
 if (!DB_URL) {
-  throw new Error('Falta DATABASE_URL_TEST (o DATABASE_URL) para correr integracion')
+  throw new Error('Falta DATABASE_URL_TEST: las pruebas de integración requieren una base aislada (nunca la de producción)')
 }
 
 var pool = new pg.Pool({
   connectionString: DB_URL,
   ssl: false,
 })
-
-var disponibilidadCache = null
 
 function tablaSeguro(nombre) {
   // Avoid quoted identifiers so Postgres resolves names case-insensitively
@@ -26,7 +26,15 @@ function tablaSeguro(nombre) {
 }
 
 export async function resetearBasePruebas() {
-  var tablas = ['Documento', 'Cita', 'Calendario', 'Chatbot', 'Caso', 'Administrador', 'Cliente', 'Abogado', 'Usuario']
+  // Seguridad: nunca reconstruir una base cuyo contenedor no sea de pruebas.
+  var nombreBd = new URL(DB_URL).pathname.slice(1) || ''
+  if (!/_test/.test(nombreBd)) {
+    throw new Error(
+      'resetearBasePruebas solo puede ejecutarse contra una base de pruebas (nombre *_test). Recibido: "' + nombreBd + '"'
+    )
+  }
+
+  var tablas = ['Documento', 'Cita', 'Calendario', 'Chatbot', 'Caso', 'Administrador', 'Cliente', 'Abogado', 'Usuario', 'auditoria_logs']
 
   await pool.query('BEGIN')
   try {
@@ -44,17 +52,27 @@ export async function resetearBasePruebas() {
   }
 }
 
-export async function dbPruebasDisponible() {
-  if (disponibilidadCache !== null) return disponibilidadCache
+var disponibilidadCache = null
+
+// Verifica que la base de prueba esté disponible. Si NO lo está, lanza un error
+// claro para que la suite falle sonoramente en vez de pasar sin ejecutar aserciones.
+export async function verificarBasePruebasDisponible() {
+  if (disponibilidadCache !== null) {
+    if (disponibilidadCache) return true
+    throw new Error('Base de pruebas NO disponible (verifica DATABASE_URL_TEST y que PostgreSQL este arriba)')
+  }
 
   try {
     await pool.query('SELECT 1')
     disponibilidadCache = true
-  } catch (_) {
+    return true
+  } catch (e) {
     disponibilidadCache = false
+    throw new Error(
+      'Base de pruebas NO disponible: ' + (e?.message || e?.code || 'error de conexión') +
+      '. Las pruebas de integración requieren PostgreSQL de pruebas.'
+    )
   }
-
-  return disponibilidadCache
 }
 
 export async function cerrarPoolPruebas() {
@@ -116,4 +134,16 @@ export async function sembrarUsuariosBase() {
     abogadoPkId: abogadoRow.rows[0].id,
     passwordPlano: 'Clave123*',
   }
+}
+
+// Devuelve una franja horaria futura y laborable (lunes a viernes) para citas.
+// Evita fechas fijas que queden en el pasado y fines de semana no laborables.
+export function proximaFranjaLaborable({ hora = 10, minuto = 15, diasAdelante = 1 } = {}) {
+  var d = new Date()
+  d.setDate(d.getDate() + diasAdelante)
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1)
+  }
+  d.setHours(hora, minuto, 0, 0)
+  return d.toISOString()
 }

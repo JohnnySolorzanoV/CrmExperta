@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS Usuario (
     correo VARCHAR(100) UNIQUE NOT NULL,
     contrasena VARCHAR(255) NOT NULL,
     reset_token_hash VARCHAR(255),
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -95,3 +96,19 @@ CREATE TABLE IF NOT EXISTS Documento (
 CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_abogado_hora_activa
   ON Cita (id_abogado, date_trunc('hour', fecha_hora_copia))
   WHERE estado_cita != 'cancelada';
+
+-- Auditoría persistente: trazabilidad de acciones de negocio.
+CREATE TABLE IF NOT EXISTS auditoria_logs (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER REFERENCES Usuario(id) ON DELETE SET NULL,
+    usuario_nombre VARCHAR(100),
+    accion VARCHAR(50) NOT NULL,
+    recurso VARCHAR(50) NOT NULL,
+    recurso_id INTEGER,
+    detalle TEXT,
+    resultado VARCHAR(20) NOT NULL DEFAULT 'exito',
+    ip VARCHAR(45),
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria_logs (fecha);
+CREATE INDEX IF NOT EXISTS idx_auditoria_recurso ON auditoria_logs (recurso, recurso_id);

@@ -4,12 +4,12 @@ import crypto from 'crypto'
 import * as authRepo from './auth.repositorio.js'
 import { Usuario } from '../../entidades/usuario.js'
 import { enviarEmail } from '../../config/google.js'
+import { log } from '../../config/logger.js'
 
 var claveJWT = process.env.JWT_SECRET || 'crm-experta-secreto-temporal'
 var FRONTEND_URL = process.env.FRONTEND_URL || ''
 
 export var registrarse = async ({ identificacion, nombre, correo, contrasena }) => {
-  console.log('registrando:', correo)
   var ya_existe_mail = await authRepo.buscarPorCorreo(correo)
   if (ya_existe_mail) throw Object.assign(new Error('El correo ya esta registrado'), { status: 400 })
 
@@ -22,7 +22,6 @@ export var registrarse = async ({ identificacion, nombre, correo, contrasena }) 
   var RES = await authRepo.crear(usr)
   await authRepo.crearCliente(RES.id)
 
-  console.log('user creado:', RES.id)
   return RES
 }
 
@@ -36,7 +35,6 @@ export async function iniciarSesion({ correo, contrasena }) {
   if (!PASS_val) throw Object.assign(new Error('Correo o contraseña incorrectos'), { status: 401 })
 
   var ROLES_DEL_USER = await authRepo.detectarRoles(userr.id)
-  console.log('roles:', ROLES_DEL_USER)
 
   var TOKEN = jwt.sign(
     { id: userr.id, correo: userr.correo, roles: ROLES_DEL_USER },
@@ -70,7 +68,7 @@ export async function recuperarContrasena(correo) {
   var resetPath = `/reset-contrasena/${encodeURIComponent(tokenPlano)}`
   var enlaceReset = `${FRONTEND_URL.replace(/\/$/, '')}${resetPath}`
 
-  var emailId = await enviarEmail({
+  var emailRes = await enviarEmail({
     para: correo,
     asunto: 'Recuperacion de contrasena',
     titulo: 'Recupera tu contrasena',
@@ -80,10 +78,10 @@ export async function recuperarContrasena(correo) {
       'Si no solicitaste este cambio, ignora este correo.'
     ]
   })
-  if (emailId) {
-    console.log('[Auth Reset] Email de recuperacion enviado a:', correo, 'id:', emailId)
+  if (emailRes?.estado === 'exito') {
+    log.info('EMAIL_RECUPERACION_ENVIADO')
   } else {
-    console.log('[Auth Reset] No se pudo confirmar envio de email para:', correo)
+    log.warn('EMAIL_RECUPERACION_NO_CONFIRMADO', { estado: emailRes?.estado })
   }
 
   return { mensaje: 'Si el correo existe, te enviaremos instrucciones para recuperar la contraseña.' }

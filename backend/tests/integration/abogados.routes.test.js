@@ -2,19 +2,17 @@ import request from 'supertest'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { APP } from '../../server.js'
 import { crearTokenTest } from '../helpers/authTestUtils.js'
-import { dbPruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('Integracion /api/abogados', () => {
   var baseIds
   var tokenAdmin
-  var dbLista = true
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(async () => {
-    if (!dbLista) return
     await resetearBasePruebas()
     baseIds = await sembrarUsuariosBase()
     tokenAdmin = crearTokenTest({
@@ -25,7 +23,6 @@ describe('Integracion /api/abogados', () => {
   })
 
   it('INT-ABOGADOS-01 DELETE /api/abogados/:id bloquea la eliminacion cuando existen casos asignados', async () => {
-    if (!dbLista) return
 
     await queryTest(
       `INSERT INTO Caso (estado_caso, tipo_caso, nombre_caso, id_cliente, id_abogado)
@@ -42,7 +39,6 @@ describe('Integracion /api/abogados', () => {
   })
 
   it('INT-ABOGADOS-02 DELETE /api/abogados/:id bloquea la eliminacion cuando hay citas activas programadas', async () => {
-    if (!dbLista) return
 
     await queryTest(
       `INSERT INTO Cita (id_cliente, id_abogado, fecha_hora_copia, motivo, estado_cita)
@@ -59,7 +55,6 @@ describe('Integracion /api/abogados', () => {
   })
 
   it('INT-ABOGADOS-03 DELETE /api/abogados/:id permite eliminar cuando solo existen citas cerradas', async () => {
-    if (!dbLista) return
 
     await queryTest(
       `INSERT INTO Cita (id_cliente, id_abogado, fecha_hora_copia, motivo, estado_cita)
@@ -84,5 +79,15 @@ describe('Integracion /api/abogados', () => {
     var usuarioEliminado = await queryTest('SELECT id FROM Usuario WHERE id = $1', [baseIds.abogadoUsuarioId])
     expect(abogadoEliminado.rows.length).toBe(0)
     expect(usuarioEliminado.rows.length).toBe(0)
+  })
+
+  it('RF11-02 POST /api/abogados rechaza una licencia profesional duplicada', async () => {
+    // Reutiliza la licencia ya sembrada (MAT-TEST-001).
+    var r = await request(APP)
+      .post('/api/abogados')
+      .set('Authorization', 'Bearer ' + tokenAdmin)
+      .send({ correo: 'dup@test.com', identificacion: '720', nombre: 'Dup', contrasena: 'Clave123*', especialidad: 'Civil', numLicencia: 'MAT-TEST-001' })
+    expect(r.status).toBe(409)
+    expect(r.body.error).toContain('licencia profesional ya esta registrada')
   })
 })

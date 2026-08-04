@@ -40,4 +40,18 @@ describe('chatbot.casosDeUso', () => {
     expect(r.consultaId).toBe(55)
     expect(r.agendar?.accion).toBe('agendar')
   })
+
+  it('RF13-03 consultar persiste un mensaje de fallo si el servicio externo cae', async () => {
+    repo.obtenerHistorial.mockResolvedValue([])
+    repo.crear.mockResolvedValue({ id: 56 })
+    repo.actualizarLog.mockResolvedValue(undefined)
+    db.ejecutarConsulta.mockResolvedValue({ rows: [] })
+    poe.preguntarAI.mockRejectedValue(new Error('timeout'))
+
+    var { consultar } = await import('../../modulos/chatbot/chatbot.casosDeUso.js')
+    var r = await consultar({ idUsuario: 1, mensaje: 'hola' })
+    expect(r.consultaId).toBe(56)
+    expect(r.respuesta).toContain('no puede responder')
+    expect(repo.actualizarLog).toHaveBeenCalled()
+  })
 })

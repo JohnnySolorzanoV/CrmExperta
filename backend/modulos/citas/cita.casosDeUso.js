@@ -2,6 +2,7 @@ import * as ctaRepo from './cita.repositorio.js'
 import { Cita } from '../../entidades/cita.js'
 import { ejecutarConsulta } from '../../config/database.js'
 import { enviarEmail } from '../../config/google.js'
+import { log } from '../../config/logger.js'
 import { normalizarFechaIsoUTC } from '../../config/datetime.js'
 
 // ─── Notification helpers ────────────────────────────────────────────────────
@@ -140,6 +141,37 @@ async function notificarCancelacion(cita, motivoCancelacion, canceladoPor) {
 
 // ─── Use cases ───────────────────────────────────────────────────────────────
 
+// Detecta un conflicto por reserva simultánea: la restricción única de Postgres
+// (uidx_cita_abogado_hora_activa) garantiza que dos inserciones concurrentes al
+// mismo horario generen una única reserva y un rechazo controlado (23505).
+function esConflictoHorario(e) {
+  return e?.code === '23505'
+}
+
+function rechazoConflicto() {
+  return Object.assign(new Error('Este abogado ya tiene una cita en esa hora'), { status: 409 })
+}
+
+// Validación de franja horaria (RF05): evita fechas pasadas, fines de semana y
+// horarios fuera de atención (08:00–18:00, hora local del servidor).
+var HORA_INICIO_ATENCION = 8
+var HORA_FIN_ATENCION = 18
+
+function validarFranjaAtencion(fechaIso) {
+  var d = new Date(fechaIso)
+  if (Number.isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+    throw Object.assign(new Error('La fecha de la cita no puede estar en el pasado'), { status: 400 })
+  }
+  var dia = d.getDay()
+  if (dia === 0 || dia === 6) {
+    throw Object.assign(new Error('No se pueden agendar citas en fines de semana'), { status: 400 })
+  }
+  var hora = d.getHours()
+  if (hora < HORA_INICIO_ATENCION || hora >= HORA_FIN_ATENCION) {
+    throw Object.assign(new Error('La hora esta fuera del horario de atencion (08:00 - 18:00)'), { status: 400 })
+  }
+}
+
 export async function listarCitas() {
   return ctaRepo.obtenerTodas()
 }
@@ -181,6 +213,7 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
   if (!fechaCanonica) {
     throw Object.assign(new Error('La fecha de la cita no tiene un formato valido.'), { status: 400 })
   }
+  validarFranjaAtencion(fechaCanonica)
 
   var rCliente = await ejecutarConsulta('SELECT id FROM Cliente WHERE id_usuario = $1', [idCliente])
   if (rCliente.rows.length === 0) throw Object.assign(new Error('Cliente no encontrado'), { status: 404 })
@@ -211,11 +244,19 @@ export async function agendarCita({ idCliente, idAbogado, fechaHoraCopia, idCale
     motivo, estadoCita: 'pendiente', resumenChatbot
   })
 
-  var cita = await ctaRepo.crear(cita_nueva)
+  var cita
+  try {
+    cita = await ctaRepo.crear(cita_nueva)
+  } catch (e) {
+    if (esConflictoHorario(e)) throw rechazoConflicto()
+    throw e
+  }
+
+  log.info('CITA_AGENDADA', { citaId: cita.id, abogado: pkAbogado, fecha: fechaCanonica })
 
   // Fire-and-forget: email notifications (does not block the response)
   notificarAgendamiento(cita, pkCliente, pkAbogado, motivo).catch(e => {
-    console.error('[Notificaciones] agendarCita id=' + cita.id + ':', e.message)
+    log.error('NOTIFICACION_AGENDAR_ERR', { citaId: cita.id, err: e.message })
   })
 
   return cita
@@ -232,8 +273,10 @@ export var cancelarCita = async (id, { motivoCancelacion, canceladoPor } = {}) =
   var c = await ctaRepo.cancelarConMotivo(id, motivoCancelacion, canceladoPor)
   if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
 
+  log.info('CITA_CANCELADA', { citaId: id, motivo: motivoCancelacion, por: canceladoPor })
+
   notificarCancelacion(c, motivoCancelacion, canceladoPor).catch(e => {
-    console.error('[Notificaciones] cancelarCita id=' + id + ':', e.message)
+    log.error('NOTIFICACION_CANCELAR_ERR', { citaId: id, err: e.message })
   })
 
   return c
@@ -250,7 +293,7 @@ export var aceptarCita = async (id) => {
   if (!c) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
 
   notificarConfirmacion(c).catch(e => {
-    console.error('[Notificaciones] aceptarCita id=' + id + ':', e.message)
+    log.error('NOTIFICACION_ACEPTAR_ERR', { citaId: id, err: e.message })
   })
 
   return c
@@ -264,6 +307,7 @@ export async function reprogramarCita(id, fechaHoraCopia, idCalendario) {
   if (!fechaCanonica) {
     throw Object.assign(new Error('La nueva fecha de la cita no tiene un formato valido.'), { status: 400 })
   }
+  validarFranjaAtencion(fechaCanonica)
 
   var conflictoHora = await ctaRepo.existeConflictoAbogado(existe.idAbogado, fechaCanonica, id)
   if (conflictoHora) throw Object.assign(new Error('El abogado ya tiene una cita en ese nuevo horario'), { status: 409 })
@@ -285,10 +329,18 @@ export async function reprogramarCita(id, fechaHoraCopia, idCalendario) {
     idCalendario = slotCreado.rows[0].id
   }
 
-  var citaActualizada = await ctaRepo.actualizarFecha(id, fechaCanonica, idCalendario)
+  var citaActualizada
+  try {
+    citaActualizada = await ctaRepo.actualizarFecha(id, fechaCanonica, idCalendario)
+  } catch (e) {
+    if (esConflictoHorario(e)) throw rechazoConflicto()
+    throw e
+  }
+
+  log.info('CITA_REPROGRAMADA', { citaId: id, desde: existe.fechaHoraCopia, hacia: fechaCanonica })
 
   notificarReprogramacion(citaActualizada, fechaCanonica).catch(e => {
-    console.error('[Notificaciones] reprogramarCita id=' + id + ':', e.message)
+    log.error('NOTIFICACION_REPROGRAMAR_ERR', { citaId: id, err: e.message })
   })
 
   return citaActualizada

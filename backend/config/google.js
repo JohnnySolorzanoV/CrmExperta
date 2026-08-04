@@ -1,7 +1,7 @@
-import dotenv from 'dotenv'
+import './env.js'
 import nodemailer from 'nodemailer'
-
-dotenv.config()
+import { log } from './logger.js'
+import { registrarNotificacion } from '../modulos/auditoria/auditoria.servicio.js'
 
 const {
   SMTP_HOST = 'smtp.gmail.com',
@@ -51,30 +51,39 @@ function getSmtpTransporter() {
 
 /**
  * Sends an HTML email via SMTP (Gmail App Password friendly).
+ * Never throws: on failure it returns { estado: 'fallido' } so the caller can
+ * decide what to do (e.g. retry the recordatorio or mark it as delivered).
  * @param {object} opts
  * @param {string} opts.para - recipient email address
  * @param {string} opts.asunto - subject line (plain text)
  * @param {string} opts.titulo - heading rendered inside the email body
  * @param {string[]} opts.lineas - body paragraphs (may contain HTML tags)
+ * @returns {Promise<{estado:'exito'|'fallido'|'omitido', messageId?:string, detalle?:string}>}
  */
 export async function enviarEmail({ para, asunto, titulo, lineas }) {
   if (!SMTP_HABILITADO) {
-    console.log('[Email SMTP] Envio omitido (SMTP_USER/SMTP_PASS no configurados):', asunto, '->', para)
-    return null
+    log.info('EMAIL_SMTP_OMITIDO', { asunto })
+    await registrarNotificacion({ para, asunto, resultado: 'omitido' }).catch(() => {})
+    return { estado: 'omitido' }
   }
 
-  try {
-    const transporter = getSmtpTransporter()
-    const info = await transporter.sendMail({
-      from: `CRM Experta <${SMTP_REMITENTE}>`,
-      to: para,
-      subject: asunto,
-      html: plantillaHtml(titulo, lineas),
-    })
-    console.log('[Email SMTP] Email enviado id=' + info.messageId + ' a ' + para)
-    return info.messageId
-  } catch (e) {
-    console.error('[Email SMTP] Error enviando email a', para + ':', e.message)
-    return null
+  for (var intento = 1; intento <= 2; intento++) {
+    try {
+      const transporter = getSmtpTransporter()
+      const info = await transporter.sendMail({
+        from: `CRM Experta <${SMTP_REMITENTE}>`,
+        to: para,
+        subject: asunto,
+        html: plantillaHtml(titulo, lineas),
+      })
+      log.info('EMAIL_SMTP_ENVIADO', { messageId: info.messageId, intento })
+      await registrarNotificacion({ para, asunto: info.messageId, resultado: 'exito' }).catch(() => {})
+      return { estado: 'exito', messageId: info.messageId }
+    } catch (e) {
+      log.warn('EMAIL_SMTP_ERR', { err: e.message, intento, para })
+    }
   }
+
+  await registrarNotificacion({ para, asunto, resultado: 'fallido', detalle: 'SMTP no disponible' }).catch(() => {})
+  return { estado: 'fallido', detalle: 'SMTP no disponible' }
 }

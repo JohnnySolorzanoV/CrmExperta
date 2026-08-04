@@ -1,14 +1,24 @@
 import { Router } from 'express'
 import { verificarToken } from '../../config/autenticacion.js'
+import { verificarMismoUsuarioOTarget } from '../../config/autorizacion.js'
 import { consultar, obtenerHistorial } from './chatbot.casosDeUso.js'
 import { agendarCita } from '../citas/cita.casosDeUso.js'
 
 var router = Router()
 
+function proximaFranjaLaborable() {
+  var d = new Date()
+  d.setDate(d.getDate() + 1)
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)
+  d.setHours(10, 0, 0, 0)
+  return d.toISOString()
+}
+
 router.post('/consultar', verificarToken, async (req, res, next) => {
   try {
-    var { idUsuario, mensaje } = req.body
-    var R = await consultar({ idUsuario, mensaje })
+    // El historial/contexto siempre corresponde al usuario autenticado.
+    var mensaje = req.body?.mensaje
+    var R = await consultar({ idUsuario: req.usuario.id, mensaje })
     res.json(R)
   } catch (error) { next(error) }
 })
@@ -25,7 +35,7 @@ router.post('/agendar', verificarToken, async (req, res, next) => {
     var citaCreada = await agendarCita({
       idCliente,
       idAbogado,
-      fechaHoraCopia: fechaHoraCopia || new Date(Date.now() + 86400000).toISOString(), // mañana por defecto
+      fechaHoraCopia: fechaHoraCopia || proximaFranjaLaborable(), // proximo dia laborable por defecto
       idCalendario,
       motivo: motivo || resumen.substring(0, 200),
       resumenChatbot: resumen
@@ -39,7 +49,7 @@ router.post('/agendar', verificarToken, async (req, res, next) => {
   } catch (error) { next(error) }
 })
 
-router.get('/historial/:idUsuario', verificarToken, async (req, res, next) => {
+router.get('/historial/:idUsuario', verificarToken, verificarMismoUsuarioOTarget(req => req.params.idUsuario), async (req, res, next) => {
   try {
     var HIST = await obtenerHistorial(Number(req.params.idUsuario))
     res.json({ historial: HIST })

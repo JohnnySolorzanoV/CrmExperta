@@ -1,6 +1,4 @@
-import dotenv from 'dotenv'
-
-dotenv.config()
+import './env.js'
 
 var API_KEY = process.env.POE_API_KEY || ''
 var URL_API = 'https://api.poe.com/v1/chat/completions'
@@ -26,12 +24,11 @@ export async function preguntarAI(listaMensajes) {
     })
 
     var textoCrudo = await respuesta.text()
-    console.log('respuesta cruda Poe:', textoCrudo.substring(0, 300))
 
     var datos = JSON.parse(textoCrudo)
 
     if (!respuesta.ok) {
-      console.error('error Poe API:', datos)
+      console.error('error Poe API')
       return 'Error al comunicarse con la IA.'
     }
 
@@ -64,8 +61,7 @@ export async function preguntarAIConStream(listaMensajes, onChunk) {
     })
 
     if (!respuesta.ok) {
-      var datos = await respuesta.json()
-      console.error('error Poe API:', datos)
+      console.error('error Poe API')
       onChunk('Error al comunicarse con la IA.')
       return
     }

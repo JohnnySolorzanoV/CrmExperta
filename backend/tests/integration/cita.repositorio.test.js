@@ -1,19 +1,17 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as repo from '../../modulos/citas/cita.repositorio.js'
-import { dbPruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('cita.repositorio', () => {
   var ids
   var citaId
   var calendarioId
-  var dbLista = true
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(() => {
-    if (!dbLista) return
     return (async () => {
       await resetearBasePruebas()
       ids = await sembrarUsuariosBase()
@@ -33,28 +31,24 @@ describe('cita.repositorio', () => {
     })()
   })
 
-  it('UNIT-CITAS-01 buscarPorId retorna null cuando la cita no existe', async () => {
-    if (!dbLista) return
+  it('INT-REPO-CITAS-01 buscarPorId retorna null cuando la cita no existe', async () => {
     var r = await repo.buscarPorId(100)
     expect(r).toBeNull()
   })
 
-  it('UNIT-CITAS-02 slotOcupado retorna true cuando existe una cita activa asociada al slot', async () => {
-    if (!dbLista) return
+  it('INT-REPO-CITAS-02 slotOcupado retorna true cuando existe una cita activa asociada al slot', async () => {
     var r = await repo.slotOcupado(calendarioId)
     expect(r).toBe(true)
   })
 
-  it('UNIT-CITAS-03 existeConflictoAbogado permite excluir la cita actual en una reprogramacion', async () => {
-    if (!dbLista) return
+  it('INT-REPO-CITAS-03 existeConflictoAbogado permite excluir la cita actual en una reprogramacion', async () => {
     var sinExcluir = await repo.existeConflictoAbogado(ids.abogadoPkId, '2026-08-01T10:50:00.000Z')
     var excluyendo = await repo.existeConflictoAbogado(ids.abogadoPkId, '2026-08-01T10:50:00.000Z', citaId)
     expect(sinExcluir).toBe(true)
     expect(excluyendo).toBe(false)
   })
 
-  it('UNIT-CITAS-04 eliminar retorna false cuando no se afecta ningun registro', async () => {
-    if (!dbLista) return
+  it('INT-REPO-CITAS-04 eliminar retorna false cuando no se afecta ningun registro', async () => {
     var r = await repo.eliminar(888888)
     expect(r).toBe(false)
   })

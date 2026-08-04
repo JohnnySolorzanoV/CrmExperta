@@ -1,17 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as repo from '../../modulos/documentos/documento.repositorio.js'
-import { dbPruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('documento.repositorio', () => {
-  var dbLista = true
   var casoId
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(async () => {
-    if (!dbLista) return
     await resetearBasePruebas()
     var ids = await sembrarUsuariosBase()
     var caso = await queryTest(
@@ -23,8 +21,7 @@ describe('documento.repositorio', () => {
     casoId = caso.rows[0].id
   })
 
-  it('UNIT-DOCUMENTOS-01 crear y buscarPorId persisten y recuperan correctamente un documento', async () => {
-    if (!dbLista) return
+  it('INT-REPO-DOCUMENTOS-01 crear y buscarPorId persisten y recuperan correctamente un documento', async () => {
     var creado = await repo.crear({
       idCaso: casoId,
       nombreDocumento: 'escrito.pdf',

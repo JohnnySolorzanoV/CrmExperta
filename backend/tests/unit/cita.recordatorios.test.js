@@ -23,7 +23,7 @@ describe('cita.recordatorios', () => {
     process.env.NODE_ENV = 'test'
   })
 
-  it('UNIT-CITAS-01 enviarRecordatoriosPendientes notifica a cliente y abogado y marca la cita como recordada', async () => {
+  it('UNIT-CITAS-RECORD-01 enviarRecordatoriosPendientes notifica a cliente y abogado y marca la cita como recordada', async () => {
     mockDb.ejecutarConsulta
       .mockResolvedValueOnce({
         rows: [{
@@ -37,7 +37,7 @@ describe('cita.recordatorios', () => {
         }],
       })
       .mockResolvedValueOnce({ rowCount: 1, rows: [] })
-    mockGoogle.enviarEmail.mockResolvedValue(null)
+    mockGoogle.enviarEmail.mockResolvedValue({ estado: 'exito' })
 
     var { enviarRecordatoriosPendientes } = await import('../../modulos/citas/cita.recordatorios.js')
     await enviarRecordatoriosPendientes()
@@ -50,7 +50,29 @@ describe('cita.recordatorios', () => {
     )
   })
 
-  it('UNIT-CITAS-02 enviarRecordatoriosPendientes no ejecuta envios ni actualizaciones cuando no existen citas elegibles', async () => {
+  it('UNIT-CITAS-RECORD-05 enviarRecordatoriosPendientes no marca la cita como recordada si el envio falla', async () => {
+    mockDb.ejecutarConsulta
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 78,
+          fecha: '2026-08-01T10:15:00.000Z',
+          motivo: 'Seguimiento',
+          nombre_cliente: 'Cliente Uno',
+          correo_cliente: 'cliente@test.com',
+          nombre_abogado: 'Abogada Uno',
+          correo_abogado: 'abogada@test.com',
+        }],
+      })
+    mockGoogle.enviarEmail.mockResolvedValue({ estado: 'fallido' })
+
+    var { enviarRecordatoriosPendientes } = await import('../../modulos/citas/cita.recordatorios.js')
+    await enviarRecordatoriosPendientes()
+
+    expect(mockGoogle.enviarEmail).toHaveBeenCalledTimes(2)
+    expect(mockDb.ejecutarConsulta).toHaveBeenCalledTimes(1)
+  })
+
+  it('UNIT-CITAS-RECORD-02 enviarRecordatoriosPendientes no ejecuta envios ni actualizaciones cuando no existen citas elegibles', async () => {
     mockDb.ejecutarConsulta.mockResolvedValueOnce({ rows: [] })
     var { enviarRecordatoriosPendientes } = await import('../../modulos/citas/cita.recordatorios.js')
 
@@ -60,7 +82,7 @@ describe('cita.recordatorios', () => {
     expect(mockDb.ejecutarConsulta).toHaveBeenCalledTimes(1)
   })
 
-  it('UNIT-CITAS-03 iniciarSchedulerRecordatorios no programa intervalos en entorno de pruebas', async () => {
+  it('UNIT-CITAS-RECORD-03 iniciarSchedulerRecordatorios no programa intervalos en entorno de pruebas', async () => {
     process.env.NODE_ENV = 'test'
     process.env.VITEST = '1'
     var setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
@@ -72,7 +94,7 @@ describe('cita.recordatorios', () => {
     expect(setIntervalSpy).not.toHaveBeenCalled()
   })
 
-  it('UNIT-CITAS-04 iniciarSchedulerRecordatorios ejecuta una corrida inicial y agenda el intervalo en entorno no test', async () => {
+  it('UNIT-CITAS-RECORD-04 iniciarSchedulerRecordatorios ejecuta una corrida inicial y agenda el intervalo en entorno no test', async () => {
     process.env.NODE_ENV = 'development'
     delete process.env.VITEST
     mockDb.ejecutarConsulta.mockResolvedValue({ rows: [] })

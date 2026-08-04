@@ -46,7 +46,7 @@ describe('cita.casosDeUso', () => {
       agendarCita({
         idCliente: 1,
         idAbogado: 2,
-        fechaHoraCopia: '2026-07-05T14:00:00.000Z',
+        fechaHoraCopia: '2030-06-05T14:00:00.000Z',
         motivo: 'Consulta',
       })
     ).rejects.toMatchObject({

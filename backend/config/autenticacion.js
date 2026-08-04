@@ -1,8 +1,18 @@
 import jwt from 'jsonwebtoken'
 
 var SECRET_KEY = process.env.JWT_SECRET || 'crm-experta-secreto-temporal'
+var SECRETO_POR_DEFECTO = 'crm-experta-secreto-temporal'
+
+function usarSecretDefecto() {
+  return !process.env.JWT_SECRET || process.env.JWT_SECRET === SECRETO_POR_DEFECTO
+}
 
 export function verificarToken(req, res, next) {
+  // En producción no se admite el secreto por defecto: evita tokens falsificables.
+  if (process.env.NODE_ENV === 'production' && usarSecretDefecto()) {
+    return res.status(500).json({ error: 'Configuracion invalida: falta JWT_SECRET real' })
+  }
+
   var HEADER_AUTH = req.headers['authorization']
   if (!HEADER_AUTH) return res.status(401).json({ error: 'Token requerido' })
 
@@ -14,6 +24,8 @@ export function verificarToken(req, res, next) {
   var TOKEN_STRING = split_parts[1]
   try {
     var PAYLOAD_USER = jwt.verify(TOKEN_STRING, SECRET_KEY)
+    // Normaliza roles siempre como array.
+    if (!Array.isArray(PAYLOAD_USER.roles)) PAYLOAD_USER.roles = []
     req.usuario = PAYLOAD_USER
     next()
   } catch (e) {

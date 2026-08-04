@@ -30,8 +30,12 @@ export var crearAbogado = async (datos) => {
     throw Object.assign(new Error('La identificacion ya esta registrada'), { status: 400 })
   }
 
+  var existeLicencia = await ejecutarConsulta('SELECT id FROM Abogado WHERE num_licencia = $1', [datos.numLicencia])
+  if (existeLicencia.rows.length > 0) {
+    throw Object.assign(new Error('La licencia profesional ya esta registrada'), { status: 409 })
+  }
+
   var contraHash = await hashPass(datos.contrasena, 10)
-  console.log('creando abogado:', datos.nombre)
 
   return abgRepo.crear({
     identificacion: datos.identificacion,

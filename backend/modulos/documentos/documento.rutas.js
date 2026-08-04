@@ -4,6 +4,8 @@ import path from 'node:path'
 import multer from 'multer'
 import { fileURLToPath } from 'node:url'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
+import { verificarDuenoCaso, verificarDuenoDocumento } from '../../config/autorizacion.js'
+import { registrarAuditoria } from '../auditoria/auditoria.servicio.js'
 import {
   listarDocumentos, obtenerDocumento, subirDocumento,
   actualizarDocumento, eliminarDocumento
@@ -69,14 +71,14 @@ function subirArchivoMiddleware(req, res, next) {
   })
 }
 
-router.get('/caso/:idCaso', verificarToken, async (req, res, next) => {
+router.get('/caso/:idCaso', verificarToken, (req, res, next) => verificarDuenoCaso(req, res, next, 'idCaso'), async (req, res, next) => {
   try {
     var DOCS = await listarDocumentos(Number(req.params.idCaso))
     res.json({ documentos: DOCS })
   } catch (error) { next(error) }
 })
 
-router.get('/:id/descargar', verificarToken, async (req, res, next) => {
+router.get('/:id/descargar', verificarToken, (req, res, next) => verificarDuenoDocumento(req, res, next, 'id'), async (req, res, next) => {
   try {
     var d = await obtenerDocumento(Number(req.params.id))
     if (!d?.rutaArchivo) {
@@ -93,7 +95,7 @@ router.get('/:id/descargar', verificarToken, async (req, res, next) => {
   } catch (error) { next(error) }
 })
 
-router.get('/:id', verificarToken, async (req, res, next) => {
+router.get('/:id', verificarToken, (req, res, next) => verificarDuenoDocumento(req, res, next, 'id'), async (req, res, next) => {
   try {
     var d = await obtenerDocumento(Number(req.params.id))
     res.json({ documento: d })
@@ -115,21 +117,29 @@ router.post('/', verificarToken, verificarRol('abogado', 'administrador'), subir
     }
 
     var d = await subirDocumento(payload)
+    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Documento', recursoId: d.id || null, detalle: 'subida de documento' }).catch(() => {})
     res.status(201).json({ mensaje: 'Documento subido', documento: d })
   } catch (error) { next(error) }
 })
 
-router.put('/:id', verificarToken, verificarRol('abogado', 'administrador'), async (req, res, next) => {
+router.put('/:id', verificarToken, verificarDuenoDocumento, verificarRol('abogado', 'administrador'), async (req, res, next) => {
   try {
     var d = await actualizarDocumento(Number(req.params.id), req.body)
     res.json({ mensaje: 'Documento actualizado', documento: d })
   } catch (error) { next(error) }
 })
 
-router.delete('/:id', verificarToken, verificarRol('abogado', 'administrador'), async (req, res, next) => {
+router.delete('/:id', verificarToken, verificarDuenoDocumento, verificarRol('abogado', 'administrador'), async (req, res, next) => {
   try {
-    var R = await eliminarDocumento(Number(req.params.id))
-    res.json(R)
+    var id = Number(req.params.id)
+    var doc = await obtenerDocumento(id)
+    var resolucion = resolverRutaArchivo(doc)
+    if (resolucion.rutaAbsoluta && fs.existsSync(resolucion.rutaAbsoluta)) {
+      fs.unlinkSync(resolucion.rutaAbsoluta)
+    }
+    var R = await eliminarDocumento(id)
+    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Documento', recursoId: id, detalle: 'eliminacion de documento y de su archivo' }).catch(() => {})
+    res.json({ ...R, archivoEliminado: true })
   } catch (error) { next(error) }
 })
 

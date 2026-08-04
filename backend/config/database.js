@@ -1,11 +1,6 @@
 import { default as pg } from 'pg'
-import dotenv from 'dotenv'
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-
-dotenv.config({ path: resolve(__dirname, '..', '.env') })
+import './env.js'
+import { log } from './logger.js'
 
 // Keep PostgreSQL TIMESTAMP (without timezone) as raw text.
 // We normalize explicitly in app code to avoid implicit local-time shifts.
@@ -24,15 +19,26 @@ export function crearConfigPool() {
   }
 }
 
-var connxion = new pg.Pool(crearConfigPool())
+var pool = null
+
+export function obtenerPool() {
+  if (!pool) {
+    pool = new pg.Pool(crearConfigPool())
+    pool.on('error', (e) => {
+      // Un error en una conexión a la espera de liberarse no debe tumbar el proceso.
+      log.warn('DB_POOL_ERR', { err: e?.message })
+    })
+  }
+  return pool
+}
 
 export async function ejecutarConsulta(txt, prms = []) {
   var cnn = null
   try {
-    cnn = await connxion.connect()
+    cnn = await obtenerPool().connect()
     return await cnn.query(txt, prms)
   } catch (e) {
-    console.error('error BD:', e.message)
+    log.error('DB_QUERY_ERR', { err: e.message })
     throw e
   } finally {
     if (cnn) cnn.release()
@@ -42,19 +48,47 @@ export async function ejecutarConsulta(txt, prms = []) {
 // prueba solo la conexión a la BD para el arranque de la app
 export async function probarConexion() {
   try {
-    await connxion.query('SELECT 1')
-    console.log('bd conectada ok')
+    await obtenerPool().query('SELECT 1')
+    log.info('DB_CONNECT_OK', {})
   } catch (e) {
     var mensaje = e?.message || e?.code || 'Error desconocido de conexion'
-    console.error('error conectando bd:', mensaje)
-    if (Array.isArray(e?.errors) && e.errors.length > 0) {
-      for (var detalle of e.errors) {
-        console.error(
-          'detalle conexion:',
-          `${detalle?.code || 'ERR'} ${detalle?.address || ''}:${detalle?.port || ''}`.trim()
-        )
-      }
-    }
+    log.error('DB_CONNECT_ERR', { err: { code: e?.code, message: mensaje } })
     throw e
+  }
+}
+
+// Reintenta la conexión con espera entre intentos. Permite que el servicio
+// arranque cuando la base aún se está levantando y vuelva a operar tras una caída.
+export async function iniciarConexionConReintentos({
+  intentosMax = Number(process.env.DB_REINTENTOS || 6),
+  esperaMs = Number(process.env.DB_ESPERA_MS || 5000),
+} = {}) {
+  let intento = 0
+  while (true) {
+    intento++
+    try {
+      await probarConexion()
+      return { conectado: true, intentosRealizados: intento }
+    } catch (e) {
+      if (intento >= intentosMax) {
+        throw e
+      }
+      log.warn('DB_RECONEXION', { intento, esperaMs })
+      await new Promise((res) => setTimeout(res, esperaMs))
+    }
+  }
+}
+
+// Cierre ordenado del pool en el apagado del proceso. Al reiniciar o al volver
+// a consultar, `obtenerPool()` recrea la conexión (recuperación en proceso).
+export async function cerrarConexiones() {
+  try {
+    if (pool) {
+      await pool.end()
+      pool = null
+      log.info('DB_CONNEXION_CERRADA', {})
+    }
+  } catch (e) {
+    log.warn('DB_CIERRE_ERR', { err: e?.message })
   }
 }

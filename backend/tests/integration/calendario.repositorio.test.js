@@ -1,18 +1,16 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as repo from '../../modulos/calendario/calendario.repositorio.js'
-import { dbPruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('calendario.repositorio', () => {
-  var dbLista = true
   var ids
   var slotId
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(async () => {
-    if (!dbLista) return
     await resetearBasePruebas()
     ids = await sembrarUsuariosBase()
     var slot = await queryTest(
@@ -22,8 +20,7 @@ describe('calendario.repositorio', () => {
     slotId = slot.rows[0].id
   })
 
-  it('UNIT-CALENDARIO-01 buscarPorId retorna el slot cuando existe y null en caso contrario', async () => {
-    if (!dbLista) return
+  it('INT-REPO-CALENDARIO-01 buscarPorId retorna el slot cuando existe y null en caso contrario', async () => {
     var ok = await repo.buscarPorId(slotId)
     var no = await repo.buscarPorId(99999)
     expect(ok?.id).toBe(slotId)

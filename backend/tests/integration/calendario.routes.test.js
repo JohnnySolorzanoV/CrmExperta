@@ -2,19 +2,17 @@ import request from 'supertest'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { APP } from '../../server.js'
 import { crearTokenTest } from '../helpers/authTestUtils.js'
-import { dbPruebasDisponible, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('Integracion /api/calendario', () => {
   var ids
   var tokenAbogado
-  var dbLista = true
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(async () => {
-    if (!dbLista) return
     await resetearBasePruebas()
     ids = await sembrarUsuariosBase()
     tokenAbogado = crearTokenTest({
@@ -25,7 +23,6 @@ describe('Integracion /api/calendario', () => {
   })
 
   it('INT-CALENDARIO-01 GET /api/calendario/abogado/:id/disponibilidad retorna una lista de disponibilidad', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .get('/api/calendario/abogado/' + ids.abogadoUsuarioId + '/disponibilidad')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -35,7 +32,6 @@ describe('Integracion /api/calendario', () => {
   })
 
   it('INT-CALENDARIO-02 GET /api/calendario/abogado/:id/disponibilidad serializa fechas en formato ISO UTC', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .get('/api/calendario/abogado/' + ids.abogadoUsuarioId + '/disponibilidad')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -47,7 +43,6 @@ describe('Integracion /api/calendario', () => {
   })
 
   it('INT-CALENDARIO-03 GET /api/calendario/abogado/:id/disponibilidad acepta id interno por compatibilidad', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .get('/api/calendario/abogado/' + ids.abogadoPkId + '/disponibilidad')
       .set('Authorization', 'Bearer ' + tokenAbogado)

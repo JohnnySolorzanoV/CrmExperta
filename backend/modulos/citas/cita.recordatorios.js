@@ -1,5 +1,6 @@
 import { ejecutarConsulta } from '../../config/database.js'
 import { enviarEmail } from '../../config/google.js'
+import { log } from '../../config/logger.js'
 
 var ESTADOS_RECORDATORIO = ['pendiente', 'confirmada', 'reprogramada']
 var INTERVALO_MS = 15 * 60 * 1000
@@ -42,7 +43,7 @@ export async function enviarRecordatoriosPendientes() {
     var motivo = cita.motivo || 'No especificado'
 
     try {
-      await Promise.all([
+      var [rCliente, rAbogado] = await Promise.all([
         enviarEmail({
           para: cita.correo_cliente,
           asunto: 'Recordatorio: tienes una cita mañana',
@@ -65,12 +66,23 @@ export async function enviarRecordatoriosPendientes() {
         }),
       ])
 
-      await ejecutarConsulta(
-        'UPDATE Cita SET recordatorio_enviado = TRUE WHERE id = $1 AND recordatorio_enviado = FALSE',
-        [cita.id]
-      )
+      var ambosEntregados = rCliente?.estado === 'exito' && rAbogado?.estado === 'exito'
+
+      if (ambosEntregados) {
+        await ejecutarConsulta(
+          'UPDATE Cita SET recordatorio_enviado = TRUE WHERE id = $1 AND recordatorio_enviado = FALSE',
+          [cita.id]
+        )
+        log.info('RECORDATORIO_ENVIADO', { citaId: cita.id })
+      } else {
+        log.warn('RECORDATORIO_NO_ENVIADO', {
+          citaId: cita.id,
+          cliente: rCliente?.estado,
+          abogado: rAbogado?.estado,
+        })
+      }
     } catch (e) {
-      console.error('[Recordatorios] cita id=' + cita.id + ':', e.message)
+      log.error('RECORDATORIO_CITA_ERR', { citaId: cita.id, err: e.message })
     }
   }
 }
@@ -80,12 +92,12 @@ export function iniciarSchedulerRecordatorios() {
   if (enPruebas) return null
 
   enviarRecordatoriosPendientes().catch((e) => {
-    console.error('[Recordatorios] Error en corrida inicial:', e.message)
+    log.error('RECORDATORIOS_JOB_ERR', { err: e.message })
   })
 
   return setInterval(() => {
     enviarRecordatoriosPendientes().catch((e) => {
-      console.error('[Recordatorios] Error en scheduler:', e.message)
+      log.error('RECORDATORIOS_JOB_ERR', { err: e.message })
     })
   }, INTERVALO_MS)
 }

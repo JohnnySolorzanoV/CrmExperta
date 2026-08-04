@@ -2,20 +2,18 @@ import request from 'supertest'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { APP } from '../../server.js'
 import { crearTokenTest } from '../helpers/authTestUtils.js'
-import { dbPruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('Integracion /api/casos', () => {
   var baseIds
   var tokenAbogado
   var casoId
-  var dbLista = true
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(async () => {
-    if (!dbLista) return
     await resetearBasePruebas()
     baseIds = await sembrarUsuariosBase()
     tokenAbogado = crearTokenTest({
@@ -34,7 +32,6 @@ describe('Integracion /api/casos', () => {
   })
 
   it('INT-CASOS-01 PUT /api/casos/:id/estado actualiza el estado cuando se envia un valor valido', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .put('/api/casos/' + casoId + '/estado')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -45,7 +42,6 @@ describe('Integracion /api/casos', () => {
   })
 
   it('INT-CASOS-02 PUT /api/casos/:id/estado rechaza estados fuera del catalogo permitido', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .put('/api/casos/' + casoId + '/estado')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -56,7 +52,6 @@ describe('Integracion /api/casos', () => {
   })
 
   it('INT-CASOS-03 PUT /api/casos/:id/notas-conclusiones persiste notas y conclusiones con payload valido', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .put('/api/casos/' + casoId + '/notas-conclusiones')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -69,7 +64,6 @@ describe('Integracion /api/casos', () => {
   })
 
   it('INT-CASOS-04 PUT /api/casos/:id/notas-conclusiones rechaza payload no textual para notas o conclusiones', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .put('/api/casos/' + casoId + '/notas-conclusiones')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -80,7 +74,6 @@ describe('Integracion /api/casos', () => {
   })
 
   it('INT-CASOS-05 PUT /api/casos/:id/notas-conclusiones normaliza valores faltantes a cadenas vacias', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .put('/api/casos/' + casoId + '/notas-conclusiones')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -92,7 +85,6 @@ describe('Integracion /api/casos', () => {
   })
 
   it('INT-CASOS-06 PUT /api/casos/:id/notas-conclusiones responde 404 cuando el caso no existe', async () => {
-    if (!dbLista) return
     var r = await request(APP)
       .put('/api/casos/999999/notas-conclusiones')
       .set('Authorization', 'Bearer ' + tokenAbogado)
@@ -100,5 +92,25 @@ describe('Integracion /api/casos', () => {
 
     expect(r.status).toBe(404)
     expect(r.body.error).toBe('Caso no encontrado')
+  })
+
+  it('INT-CASOS-07 rechaza transiciones no permitidas (abierto no puede saltar a archivado)', async () => {
+    var r = await request(APP)
+      .put('/api/casos/' + casoId + '/estado')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+      .send({ estado: 'archivado' })
+
+    expect(r.status).toBe(400)
+    expect(r.body.error).toContain('Transicion no permitida')
+  })
+
+  it('INT-CASOS-08 rechaza actualizar al mismo estado actual', async () => {
+    var r = await request(APP)
+      .put('/api/casos/' + casoId + '/estado')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+      .send({ estado: 'abierto' })
+
+    expect(r.status).toBe(409)
+    expect(r.body.error).toContain('ya se encuentra en ese estado')
   })
 })

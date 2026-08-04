@@ -2,6 +2,9 @@ import * as botRepo from './chatbot.repositorio.js'
 import { Chatbot as Bot } from '../../entidades/chatbot.js'
 import { ejecutarConsulta } from '../../config/database.js'
 import { preguntarAI } from '../../config/poe.js'
+import { log } from '../../config/logger.js'
+
+var FALLO_EXTERNO = 'En este momento el asistente no puede responder. Por favor reintenta en unos minutos o agenda una cita con un abogado.'
 
 var SISTEMA_BASE = `
 Eres un asistente legal especializado que trabaja para un bufete de abogados.
@@ -137,8 +140,6 @@ function extraerAgendarDesdeRespuesta(respuestaAI) {
 export async function consultar({ idUsuario, mensaje }) {
   if (!mensaje) throw Object.assign(new Error('Mensaje requerido'), { status: 400 })
 
-  console.log('chat consulta:', mensaje, 'usuario:', idUsuario)
-
   // 1. obtener historial previo del usuario
   var historial = []
   if (idUsuario) {
@@ -161,9 +162,14 @@ export async function consultar({ idUsuario, mensaje }) {
     chatLog: logParcial
   }))
 
-  // 5. llamar a la API de Poe
-  var respuestaAI = await preguntarAI(listaMensajes)
-  console.log('respuesta AI:', respuestaAI.substring(0, 100) + '...')
+  // 5. llamar a la API de Poe (si cae, no interrumpe el flujo principal)
+  var respuestaAI
+  try {
+    respuestaAI = await preguntarAI(listaMensajes)
+  } catch (e) {
+    log.warn('CHATBOT_EXTERNO_ERR', { err: e?.message })
+    respuestaAI = FALLO_EXTERNO
+  }
 
   // 6. actualizar el registro con la respuesta
   var logCompleto = JSON.stringify({ pregunta: mensaje, respuesta: respuestaAI })

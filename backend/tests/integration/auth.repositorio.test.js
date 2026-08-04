@@ -1,27 +1,23 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as repo from '../../modulos/auth/auth.repositorio.js'
-import { dbPruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
 
 describe('auth.repositorio', () => {
-  var dbLista = true
 
   beforeAll(async () => {
-    dbLista = await dbPruebasDisponible()
+    await verificarBasePruebasDisponible()
   })
 
   beforeEach(() => {
-    if (!dbLista) return
     return resetearBasePruebas()
   })
 
-  it('UNIT-AUTH-01 buscarPorCorreo retorna null cuando no existe coincidencia', async () => {
-    if (!dbLista) return
+  it('INT-REPO-AUTH-01 buscarPorCorreo retorna null cuando no existe coincidencia', async () => {
     var r = await repo.buscarPorCorreo('x@test.com')
     expect(r).toBeNull()
   })
 
-  it('UNIT-AUTH-02 buscarPorIdentificacion retorna la entidad de usuario cuando existe', async () => {
-    if (!dbLista) return
+  it('INT-REPO-AUTH-02 buscarPorIdentificacion retorna la entidad de usuario cuando existe', async () => {
     var ids = await sembrarUsuariosBase()
     var user = await queryTest('SELECT identificacion FROM Usuario WHERE id = $1', [ids.clienteUsuarioId])
     var identificacion = user.rows[0].identificacion
@@ -30,8 +26,7 @@ describe('auth.repositorio', () => {
     expect(r?.correo).toBe('cliente@test.com')
   })
 
-  it('UNIT-AUTH-03 detectarRoles devuelve unicamente los roles registrados para cada usuario', async () => {
-    if (!dbLista) return
+  it('INT-REPO-AUTH-03 detectarRoles devuelve unicamente los roles registrados para cada usuario', async () => {
     var ids = await sembrarUsuariosBase()
     var rolesAdmin = await repo.detectarRoles(ids.adminUsuarioId)
     var rolesCliente = await repo.detectarRoles(ids.clienteUsuarioId)

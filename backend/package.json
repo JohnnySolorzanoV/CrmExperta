@@ -7,8 +7,12 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node seed.js",
-    "test:unit": "cross-env NODE_ENV=test vitest run --reporter=verbose",
-    "test:integration": "cross-env NODE_ENV=test vitest run tests/integration --reporter=verbose"
+    "db:reset": "node scripts/resetearBase.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "cross-env NODE_ENV=test vitest run tests/unit --reporter=verbose",
+    "test:integration": "cross-env NODE_ENV=test node scripts/crearBasePruebas.js && cross-env NODE_ENV=test vitest run tests/integration --reporter=verbose",
+    "db:backup": "bash scripts/respaldar.sh",
+    "db:restore": "bash scripts/restaurar.sh"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

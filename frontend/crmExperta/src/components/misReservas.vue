@@ -686,8 +686,7 @@ watch(
         <p class="mr-eyebrow" style="margin:0 0 4px">Cancelar cita</p>
         <h3 class="mr-modal-title">Confirmar cancelación</h3>
         <p class="mr-modal-meta">
-          Esta acción no se puede deshacer. Recibirás un correo de confirmación y el evento de tu
-          Google Calendar será eliminado.
+          Esta acción no se puede deshacer. Recibirás un correo de confirmación y la cita será cancelada en el sistema.
         </p>
 
         <div class="mr-modal-field">

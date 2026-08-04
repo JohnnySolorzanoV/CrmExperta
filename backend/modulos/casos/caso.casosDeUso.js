@@ -69,19 +69,34 @@ export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, concl
     idAbogado: pkAbogado
   })
 
-  console.log('creando caso:', nombreCaso)
   return casoRepo.crear(CASO_NUEVO)
 }
 
+// Transiciones permitidas entre estados de un caso (RF04).
+var TRANSICIONES_PERMITIDAS = {
+  abierto: ['en_proceso', 'cerrado'],
+  en_proceso: ['cerrado'],
+  cerrado: ['archivado'],
+  archivado: [],
+}
+
 export async function actualizarEstadoCaso(id, estado) {
-  var VALID_STATES = ['abierto', 'en_proceso', 'cerrado', 'archivado']
-  if (!VALID_STATES.includes(estado)) {
+  if (!estado || !TRANSICIONES_PERMITIDAS[estado]) {
     throw Object.assign(new Error('Estado invalido'), { status: 400 })
   }
 
-  var actualizado = await casoRepo.actualizarEstado(id, estado)
-  if (!actualizado) throw Object.assign(new Error('Caso no encontrado'), { status: 404 })
-  return actualizado
+  var actual = await casoRepo.buscarPorId(id)
+  if (!actual) throw Object.assign(new Error('Caso no encontrado'), { status: 404 })
+
+  if (actual.estadoCaso === estado) {
+    throw Object.assign(new Error('El caso ya se encuentra en ese estado'), { status: 409 })
+  }
+  var permitidos = TRANSICIONES_PERMITIDAS[actual.estadoCaso] || []
+  if (!permitidos.includes(estado)) {
+    throw Object.assign(new Error(`Transicion no permitida: ${actual.estadoCaso} -> ${estado}`), { status: 400 })
+  }
+
+  return casoRepo.actualizarEstado(id, estado)
 }
 
 export async function actualizarNotasConclusionesCaso(id, { notas, conclusiones }) {
