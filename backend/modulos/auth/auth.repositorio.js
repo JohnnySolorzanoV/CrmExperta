@@ -68,13 +68,19 @@ export async function buscarPorTokenResetHashValido(tokenHash) {
   return new Usuario(r.rows[0])
 }
 
-export async function actualizarContrasenaYLimpiarToken(idUsuario, contrasenaHash) {
-  await ejecutarConsulta(
+export async function actualizarContrasenaYLimpiarToken(idUsuario, contrasenaHash, tokenHash, cnn = null) {
+  var q = cnn ? (txt, prms) => cnn.query(txt, prms) : ejecutarConsulta
+  var r = await q(
     `UPDATE Usuario
      SET contrasena = $1,
          reset_token_hash = NULL,
          reset_token_expira = NULL
-     WHERE id = $2`,
-    [contrasenaHash, idUsuario]
+     WHERE id = $2
+       AND reset_token_hash = $3
+       AND reset_token_expira IS NOT NULL
+       AND reset_token_expira > NOW()`,
+    [contrasenaHash, idUsuario, tokenHash]
   )
+  // rowCount 0 ⇒ el token ya no es válido (usado, expirado o inexistente).
+  return r.rowCount > 0
 }

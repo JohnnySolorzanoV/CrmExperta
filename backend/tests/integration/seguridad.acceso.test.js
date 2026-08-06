@@ -43,16 +43,21 @@ describe('Integracion /api seguridad: autenticacion y pertenencia', () => {
     expect(r.status).toBe(403)
   })
 
-  it('SEC-04 el administrador accede a recursos ajenos sin restriccion de pertenencia', async () => {
+  it('SEC-04 el administrador no accede a los modulos operativos (citas, chatbot, calendario)', async () => {
     var rChat = await request(APP)
       .get('/api/chatbot/historial/' + ids.clienteUsuarioId)
       .set('Authorization', 'Bearer ' + tokenAdmin)
-    expect(rChat.status).toBe(200)
+    expect(rChat.status).toBe(403)
 
     var rCitas = await request(APP)
       .get('/api/citas/cliente/' + ids.clienteUsuarioId)
       .set('Authorization', 'Bearer ' + tokenAdmin)
-    expect(rCitas.status).toBe(200)
+    expect(rCitas.status).toBe(403)
+
+    var rCalendario = await request(APP)
+      .get('/api/calendario/abogado/' + ids.abogadoUsuarioId)
+      .set('Authorization', 'Bearer ' + tokenAdmin)
+    expect(rCalendario.status).toBe(403)
   })
 
   it('SEC-05 el dueño de un caso puede consultarlo y otro usuario ajeno obtiene 403', async () => {

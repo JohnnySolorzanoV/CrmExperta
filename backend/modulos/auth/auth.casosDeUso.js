@@ -91,7 +91,7 @@ export async function recuperarContrasena(correo) {
   return { mensaje: 'Si el correo existe, te enviaremos instrucciones para recuperar la contraseña.' }
 }
 
-export async function restablecerContrasena({ token, nuevaContrasena }) {
+export async function restablecerContrasena({ token, nuevaContrasena }, cnn = null) {
   if (!token || !nuevaContrasena) {
     throw Object.assign(new Error('Token y nueva contraseña son requeridos'), { status: 400 })
   }
@@ -106,7 +106,11 @@ export async function restablecerContrasena({ token, nuevaContrasena }) {
   }
 
   var contrasenaHash = await bcryptMod.hash(nuevaContrasena, 10)
-  await authRepo.actualizarContrasenaYLimpiarToken(userr.id, contrasenaHash)
+  var aplicado = await authRepo.actualizarContrasenaYLimpiarToken(userr.id, contrasenaHash, tokenHash, cnn)
+  if (!aplicado) {
+    // Defensa ante reuso concurrente/expiración en el instante de la escritura.
+    throw Object.assign(new Error('El token ya no es válido: expiró o fue utilizado'), { status: 400 })
+  }
 
   return { mensaje: 'Contraseña actualizada correctamente' }
 }

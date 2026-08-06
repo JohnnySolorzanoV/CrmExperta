@@ -28,22 +28,22 @@ export async function obtenerUsuario(id) {
   return u
 }
 
-export async function actualizarUsuario(id, datos) {
+export async function actualizarUsuario(id, datos, cnn = null) {
   var existe = await usrRepo.buscarPorId(id)
   if (!existe) throw Object.assign(new Error('Usuario no encontrado'), { status: 404 })
 
-  var act = await usrRepo.actualizar(id, datos)
-  act.roles = await usrRepo.obtenerRoles(id)
+  var act = await usrRepo.actualizar(id, datos, cnn)
+  act.roles = await usrRepo.obtenerRoles(id, cnn)
   return act
 }
 
-export var eliminarUsuario = async (id) => {
-  var r = await usrRepo.eliminar(id)
+export var eliminarUsuario = async (id, cnn = null) => {
+  var r = await usrRepo.eliminar(id, cnn)
   if (!r) throw Object.assign(new Error('Usuario no encontrado'), { status: 404 })
   return { mensaje: 'Usuario eliminado' }
 }
 
-export async function agregarRol(id, rol, extra = {}) {
+export async function agregarRol(id, rol, extra = {}, cnn = null) {
   var existe = await usrRepo.buscarPorId(id)
   if (!existe) throw Object.assign(new Error('Usuario no encontrado'), { status: 404 })
 
@@ -56,18 +56,25 @@ export async function agregarRol(id, rol, extra = {}) {
     throw Object.assign(new Error('Faltan numLicencia y especialidad'), { status: 400 })
   }
 
-  await usrRepo.asignarRol(id, rol, extra)
+  await usrRepo.asignarRol(id, rol, extra, cnn)
 
-  var ROLES_RES = await usrRepo.obtenerRoles(id)
+  var ROLES_RES = await usrRepo.obtenerRoles(id, cnn)
   return { mensaje: `Rol ${rol} asignado`, roles: ROLES_RES }
 }
 
-export async function removerRol(id, rol) {
+export async function removerRol(id, rol, cnn = null) {
   var existe = await usrRepo.buscarPorId(id)
   if (!existe) throw Object.assign(new Error('Usuario no encontrado'), { status: 404 })
 
-  await usrRepo.quitarRol(id, rol)
+  await usrRepo.quitarRol(id, rol, cnn)
 
-  var ROLES_RES = await usrRepo.obtenerRoles(id)
+  var ROLES_RES = await usrRepo.obtenerRoles(id, cnn)
   return { mensaje: `Rol ${rol} removido`, roles: ROLES_RES }
+}
+
+export async function cambiarEstadoUsuario(id, activo, cnn = null) {
+  var actualizado = await usrRepo.cambiarEstado(id, !!activo, cnn)
+  if (!actualizado) throw Object.assign(new Error('Usuario no encontrado'), { status: 404 })
+  actualizado.roles = await usrRepo.obtenerRoles(id, cnn)
+  return actualizado
 }

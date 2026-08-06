@@ -68,16 +68,12 @@ describe('Integracion /api/clientes', () => {
     expect(cli.rows.length).toBe(1)
   })
 
-  it('RF02-01 GET /api/clientes responde 200 solo con rol administrador', async () => {
-    var ok = await request(APP).get('/api/clientes').set('Authorization', 'Bearer ' + tokenAdmin)
-    expect(ok.status).toBe(200)
-    expect(Array.isArray(ok.body.clientes)).toBe(true)
-
+  it('RF02-01 GET /api/clientes ya no existe (listado global retirado)', async () => {
     var sinToken = await request(APP).get('/api/clientes')
-    expect(sinToken.status).toBe(401)
+    expect(sinToken.status).toBe(404)
 
-    var cliente = await request(APP).get('/api/clientes').set('Authorization', 'Bearer ' + tokenCliente)
-    expect(cliente.status).toBe(403)
+    var admin = await request(APP).get('/api/clientes').set('Authorization', 'Bearer ' + tokenAdmin)
+    expect(admin.status).toBe(404)
   })
 
   it('RF02-02 un cliente consulta su propio perfil y no el de otro', async () => {
@@ -93,22 +89,11 @@ describe('Integracion /api/clientes', () => {
     expect(ajeno.status).toBe(403)
   })
 
-  it('RF02-03 desactivacion logica es reversible (activo=false y activo=true)', async () => {
+  it('RF02-03 el administrador ya no gestiona el estado de los clientes (endpoint retirado)', async () => {
     var off = await request(APP)
       .put('/api/clientes/' + ids.clienteUsuarioId + '/estado')
       .set('Authorization', 'Bearer ' + tokenAdmin)
       .send({ activo: false })
-    expect(off.status).toBe(200)
-    expect(off.body.cliente.activo).toBe(false)
-
-    var fila = await queryTest('SELECT activo FROM Usuario WHERE id = $1', [ids.clienteUsuarioId])
-    expect(fila.rows[0].activo).toBe(false)
-
-    var on = await request(APP)
-      .put('/api/clientes/' + ids.clienteUsuarioId + '/estado')
-      .set('Authorization', 'Bearer ' + tokenAdmin)
-      .send({ activo: true })
-    expect(on.status).toBe(200)
-    expect(on.body.cliente.activo).toBe(true)
+    expect(off.status).toBe(404)
   })
 })

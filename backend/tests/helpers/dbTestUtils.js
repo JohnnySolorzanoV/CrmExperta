@@ -3,6 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import bcrypt from 'bcrypt'
+import { esperarNotificacionesPendientes } from '../../modulos/notificacion/notificacion.servicio.js'
+import { OFFSET_GUAYAQUIL_UTC_HORAS } from '../../config/horarioInstitucional.js'
 
 var __filename = fileURLToPath(import.meta.url)
 var __dirname = path.dirname(__filename)
@@ -17,6 +19,7 @@ if (!DB_URL) {
 var pool = new pg.Pool({
   connectionString: DB_URL,
   ssl: false,
+  options: '-c timezone=UTC',
 })
 
 function tablaSeguro(nombre) {
@@ -34,7 +37,11 @@ export async function resetearBasePruebas() {
     )
   }
 
-  var tablas = ['Documento', 'Cita', 'Calendario', 'Chatbot', 'Caso', 'Administrador', 'Cliente', 'Abogado', 'Usuario', 'auditoria_logs']
+  var tablas = ['Documento', 'Cita', 'Calendario', 'Chatbot', 'Caso', 'Administrador', 'Cliente', 'Abogado', 'Usuario', 'auditoria_logs', 'Notificacion']
+
+  // Deja que terminen los envios "fire-and-forget" antes de borrar el esquema,
+  // evitando deadlocks entre una notificacion en curso y el DROP TABLE.
+  await esperarNotificacionesPendientes()
 
   await pool.query('BEGIN')
   try {
@@ -137,13 +144,14 @@ export async function sembrarUsuariosBase() {
 }
 
 // Devuelve una franja horaria futura y laborable (lunes a viernes) para citas.
-// Evita fechas fijas que queden en el pasado y fines de semana no laborables.
+// `hora` y `minuto` se interpretan como hora de America/Guayaquil (UTC-5) y se
+// convierten a UTC, de modo que el resultado no dependa de la zona del runner.
 export function proximaFranjaLaborable({ hora = 10, minuto = 15, diasAdelante = 1 } = {}) {
   var d = new Date()
-  d.setDate(d.getDate() + diasAdelante)
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() + 1)
+  d.setUTCDate(d.getUTCDate() + diasAdelante)
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+    d.setUTCDate(d.getUTCDate() + 1)
   }
-  d.setHours(hora, minuto, 0, 0)
+  d.setUTCHours(hora + OFFSET_GUAYAQUIL_UTC_HORAS, minuto, 0, 0)
   return d.toISOString()
 }

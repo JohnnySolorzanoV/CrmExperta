@@ -39,38 +39,42 @@ export async function buscarPorEspecialidad(esp) {
   return r.rows.map(row => new Abg(row))
 }
 
-export async function crear(datos) {
-  return db.ejecutarEnTransaccion(async (cnn) => {
-    var r1 = await cnn.query(
-      `INSERT INTO Usuario (identificacion, nombre, correo, contrasena)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [datos.identificacion, datos.nombre, datos.correo, datos.contrasena]
-    )
-    var idU = r1.rows[0].id
+export async function crear(datos, cnn = null) {
+  var q = cnn ? (txt, prms) => cnn.query(txt, prms) : db.ejecutarConsulta
+  var r1 = await q(
+    `INSERT INTO Usuario (identificacion, nombre, correo, contrasena)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    [datos.identificacion, datos.nombre, datos.correo, datos.contrasena]
+  )
+  var idU = r1.rows[0].id
 
-    // Si falla la creación del abogado, la transacción revierte el usuario para
-    // no dejar registros huérfanos.
-    await cnn.query(
-      `INSERT INTO Abogado (id_usuario, especialidad, num_licencia) VALUES ($1, $2, $3)`,
-      [idU, datos.especialidad, datos.numLicencia]
-    )
+  // Si falla la creación del abogado, la transacción (externa) revierte el usuario
+  // para no dejar registros huérfanos.
+  await q(
+    `INSERT INTO Abogado (id_usuario, especialidad, num_licencia) VALUES ($1, $2, $3)`,
+    [idU, datos.especialidad, datos.numLicencia]
+  )
 
-    return idU
-  }).then((idU) => buscarPorId(idU))
+  // Lectura en la MISMA conexión: dentro de una transacción aún no se puede
+  // confirmar el INSERT desde otra conexión, y no queremos perder esos datos.
+  var r2 = await q(`${SQL} WHERE u.id = $1`, [idU])
+  return new Abg(r2.rows[0])
 }
 
-export async function actualizar(id, datos) {
-  var existe = await db.ejecutarConsulta('SELECT id_usuario FROM Abogado WHERE id_usuario = $1', [id])
+export async function actualizar(id, datos, cnn = null) {
+  var q = cnn ? (txt, prms) => cnn.query(txt, prms) : db.ejecutarConsulta
+  var existe = await q('SELECT id_usuario FROM Abogado WHERE id_usuario = $1', [id])
   if (existe.rows.length === 0) return null
 
-  await db.ejecutarConsulta('UPDATE Usuario SET nombre = $1, correo = $2 WHERE id = $3', [datos.nombre, datos.correo, id])
-  await db.ejecutarConsulta('UPDATE Abogado SET especialidad = $1, num_licencia = $2 WHERE id_usuario = $3', [datos.especialidad, datos.numLicencia, id])
+  await q('UPDATE Usuario SET nombre = $1, correo = $2 WHERE id = $3', [datos.nombre, datos.correo, id])
+  await q('UPDATE Abogado SET especialidad = $1, num_licencia = $2 WHERE id_usuario = $3', [datos.especialidad, datos.numLicencia, id])
 
   return buscarPorId(id)
 }
 
-export async function eliminar(id) {
-  var r = await db.ejecutarConsulta('DELETE FROM Usuario WHERE id = $1 RETURNING id', [id])
+export async function eliminar(id, cnn = null) {
+  var q = cnn ? (txt, prms) => cnn.query(txt, prms) : db.ejecutarConsulta
+  var r = await q('DELETE FROM Usuario WHERE id = $1 RETURNING id', [id])
   return r.rowCount > 0
 }
 
@@ -106,8 +110,9 @@ export async function obtenerDependenciasActivas(idUsuarioAbogado) {
   }
 }
 
-export async function eliminarCitasCerradas(idAbogado) {
-  await db.ejecutarConsulta(
+export async function eliminarCitasCerradas(idAbogado, cnn = null) {
+  var q = cnn ? (txt, prms) => cnn.query(txt, prms) : db.ejecutarConsulta
+  await q(
     `DELETE FROM Cita
      WHERE id_abogado = $1
        AND estado_cita IN ('cancelada', 'completada')`,

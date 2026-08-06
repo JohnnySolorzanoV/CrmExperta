@@ -1,6 +1,6 @@
 import { Router as routerExpress } from 'express'
 import { iniciarSesion, recuperarContrasena, restablecerContrasena } from './auth.casosDeUso.js'
-import { registrarAuditoria } from '../auditoria/auditoria.servicio.js'
+import { registrarAuditoria, ejecutarConAuditoria } from '../auditoria/auditoria.servicio.js'
 import { log } from '../../config/logger.js'
 
 var router = routerExpress()
@@ -14,22 +14,16 @@ router.post('/login', async (req, res, next) => {
     }
 
     var LOGIN_RESULT = await iniciarSesion({ correo, contrasena })
+    // El login no tiene una mutación que revertir; si el log falla, el intento se
+    // registra vía el manejador de errores (resultado='fallido') y no se oculta.
     await registrarAuditoria({
       req: { ip: req.ip, usuario: LOGIN_RESULT.usuario },
       accion: 'LOGIN',
       recurso: 'Sesión',
       detalle: 'inicio de sesion exitoso'
-    })
+    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message, contexto: 'login exitoso' }))
     res.json(LOGIN_RESULT)
   } catch (error) {
-    await registrarAuditoria({
-      req: { ip: req.ip, usuario: null },
-      accion: 'LOGIN_FALLIDO',
-      recurso: 'Sesión',
-      recusoId: null,
-      detalle: 'intento de inicio de sesion fallido para: ' + (req.body?.correo || '?'),
-      resultado: 'fallido'
-    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message }))
     next(error)
   }
 })
@@ -55,12 +49,13 @@ router.post('/restablecer-contrasena', async (req, res, next) => {
       return res.status(codigodeErr).json({ error: 'Token y nueva contraseña requeridos' })
     }
 
-    var RESET_RESULT = await restablecerContrasena({ token, nuevaContrasena })
-    await registrarAuditoria({
+    // Restablecimiento atómico: la contraseña y su auditoría se confirman juntas.
+    var RESET_RESULT = await ejecutarConAuditoria({
       req,
       accion: 'CONTRASENA_RESTABLECIDA',
       recurso: 'Usuario',
-      detalle: 'contraseña restablecida mediante token de recuperacion'
+      detalle: 'contraseña restablecida mediante token de recuperacion',
+      tarea: (cnn) => restablecerContrasena({ token, nuevaContrasena }, cnn),
     })
     res.json(RESET_RESULT)
   } catch (error) { next(error) }

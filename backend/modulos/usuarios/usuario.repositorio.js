@@ -3,6 +3,10 @@ import { Usuario } from '../../entidades/usuario.js'
 
 var CAMPOS_USUARIO = `id, identificacion, nombre, correo, fecha_registro as "fechaRegistro"`
 
+function conClient(cnn) {
+  return cnn ? (txt, prms) => cnn.query(txt, prms) : sqlExec
+}
+
 export async function obtenerTodos() {
   var r = await sqlExec(`SELECT ${CAMPOS_USUARIO} FROM Usuario ORDER BY id`)
   return r.rows.map(row => new Usuario(row))
@@ -25,8 +29,9 @@ export async function buscarPorId(id) {
   return new Usuario(r.rows[0])
 }
 
-export async function actualizar(id, datos) {
-  var r = await sqlExec(
+export async function actualizar(id, datos, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `UPDATE Usuario SET nombre = $1, correo = $2 WHERE id = $3
      RETURNING ${CAMPOS_USUARIO}`,
     [datos.nombre, datos.correo, id]
@@ -35,44 +40,59 @@ export async function actualizar(id, datos) {
   return new Usuario(r.rows[0])
 }
 
-export async function eliminar(id) {
-  var r = await sqlExec('DELETE FROM Usuario WHERE id = $1 RETURNING id', [id])
+export async function eliminar(id, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q('DELETE FROM Usuario WHERE id = $1 RETURNING id', [id])
   return r.rowCount > 0
 }
 
-export async function asignarRol(idU, rol, extra = {}) {
+export async function cambiarEstado(id, activo, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
+    `UPDATE Usuario SET activo = $2 WHERE id = $1
+     RETURNING ${CAMPOS_USUARIO}`,
+    [id, activo]
+  )
+  if (r.rows.length === 0) return null
+  return new Usuario(r.rows[0])
+}
+
+export async function asignarRol(idU, rol, extra = {}, cnn = null) {
+  var q = conClient(cnn)
   if (rol === 'administrador') {
-    await sqlExec('INSERT INTO Administrador (id_usuario) VALUES ($1) ON CONFLICT DO NOTHING', [idU])
+    await q('INSERT INTO Administrador (id_usuario) VALUES ($1) ON CONFLICT DO NOTHING', [idU])
   } else if (rol === 'abogado') {
-    await sqlExec(
+    await q(
       'INSERT INTO Abogado (id_usuario, num_licencia, especialidad) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
       [idU, extra.numLicencia, extra.especialidad]
     )
   } else if (rol === 'cliente') {
-    await sqlExec('INSERT INTO Cliente (id_usuario) VALUES ($1) ON CONFLICT DO NOTHING', [idU])
+    await q('INSERT INTO Cliente (id_usuario) VALUES ($1) ON CONFLICT DO NOTHING', [idU])
   }
 }
 
-export async function quitarRol(idU, rol) {
+export async function quitarRol(idU, rol, cnn = null) {
+  var q = conClient(cnn)
   if (rol === 'administrador') {
-    await sqlExec('DELETE FROM Administrador WHERE id_usuario = $1', [idU])
+    await q('DELETE FROM Administrador WHERE id_usuario = $1', [idU])
   } else if (rol === 'abogado') {
-    await sqlExec('DELETE FROM Abogado WHERE id_usuario = $1', [idU])
+    await q('DELETE FROM Abogado WHERE id_usuario = $1', [idU])
   } else if (rol === 'cliente') {
-    await sqlExec('DELETE FROM Cliente WHERE id_usuario = $1', [idU])
+    await q('DELETE FROM Cliente WHERE id_usuario = $1', [idU])
   }
 }
 
-export async function obtenerRoles(idU) {
+export async function obtenerRoles(idU, cnn = null) {
+  var q = conClient(cnn)
   var ROLES = []
 
-  var a = await sqlExec('SELECT id FROM Administrador WHERE id_usuario = $1', [idU])
+  var a = await q('SELECT id FROM Administrador WHERE id_usuario = $1', [idU])
   if (a.rows.length > 0) ROLES.push('administrador')
 
-  var b = await sqlExec('SELECT id FROM Abogado WHERE id_usuario = $1', [idU])
+  var b = await q('SELECT id FROM Abogado WHERE id_usuario = $1', [idU])
   if (b.rows.length > 0) ROLES.push('abogado')
 
-  var c = await sqlExec('SELECT id FROM Cliente WHERE id_usuario = $1', [idU])
+  var c = await q('SELECT id FROM Cliente WHERE id_usuario = $1', [idU])
   if (c.rows.length > 0) ROLES.push('cliente')
 
   return ROLES

@@ -15,22 +15,23 @@ export async function buscarPorEspecialidad(especialidad) {
   return abgRepo.buscarPorEspecialidad(especialidad)
 }
 
-export var crearAbogado = async (datos) => {
+export var crearAbogado = async (datos, cnn = null) => {
   if (!datos.especialidad || !datos.numLicencia) {
     throw Object.assign(new Error('Faltan datos del abogado (especialidad, numLicencia)'), { status: 400 })
   }
 
-  var existeMail = await ejecutarConsulta('SELECT id FROM Usuario WHERE correo = $1', [datos.correo])
+  var q = cnn ? (txt, prms) => cnn.query(txt, prms) : ejecutarConsulta
+  var existeMail = await q('SELECT id FROM Usuario WHERE correo = $1', [datos.correo])
   if (existeMail.rows.length > 0) {
     throw Object.assign(new Error('El correo ya esta registrado'), { status: 400 })
   }
 
-  var existeIdent = await ejecutarConsulta('SELECT id FROM Usuario WHERE identificacion = $1', [datos.identificacion])
+  var existeIdent = await q('SELECT id FROM Usuario WHERE identificacion = $1', [datos.identificacion])
   if (existeIdent.rows.length > 0) {
     throw Object.assign(new Error('La identificacion ya esta registrada'), { status: 400 })
   }
 
-  var existeLicencia = await ejecutarConsulta('SELECT id FROM Abogado WHERE num_licencia = $1', [datos.numLicencia])
+  var existeLicencia = await q('SELECT id FROM Abogado WHERE num_licencia = $1', [datos.numLicencia])
   if (existeLicencia.rows.length > 0) {
     throw Object.assign(new Error('La licencia profesional ya esta registrada'), { status: 409 })
   }
@@ -44,16 +45,16 @@ export var crearAbogado = async (datos) => {
     contrasena: contraHash,
     especialidad: datos.especialidad,
     numLicencia: datos.numLicencia
-  })
+  }, cnn)
 }
 
-export async function actualizarAbogado(id, datos) {
-  var a = await abgRepo.actualizar(id, datos)
+export async function actualizarAbogado(id, datos, cnn = null) {
+  var a = await abgRepo.actualizar(id, datos, cnn)
   if (!a) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
   return a
 }
 
-export var eliminarAbogado = async (id) => {
+export var eliminarAbogado = async (id, cnn = null) => {
   var deps = await abgRepo.obtenerDependenciasActivas(id)
   if (!deps) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
 
@@ -73,8 +74,8 @@ export var eliminarAbogado = async (id) => {
 
   var r
   try {
-    await abgRepo.eliminarCitasCerradas(deps.idAbogado)
-    r = await abgRepo.eliminar(id)
+    await abgRepo.eliminarCitasCerradas(deps.idAbogado, cnn)
+    r = await abgRepo.eliminar(id, cnn)
   } catch (error) {
     if (error?.code === '23503') {
       throw Object.assign(

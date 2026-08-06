@@ -48,7 +48,7 @@ function normalizarTextoOpcional(valor) {
   return valor.trim()
 }
 
-export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, conclusiones, idCliente, idAbogado }) {
+export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, conclusiones, idCliente, idAbogado }, cnn = null) {
   if (!tipoCaso || !nombreCaso || !idCliente || !idAbogado) {
     throw Object.assign(new Error('Faltan datos del caso'), { status: 400 })
   }
@@ -69,7 +69,7 @@ export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, concl
     idAbogado: pkAbogado
   })
 
-  return casoRepo.crear(CASO_NUEVO)
+  return casoRepo.crear(CASO_NUEVO, cnn)
 }
 
 // Transiciones permitidas entre estados de un caso (RF04).
@@ -80,7 +80,7 @@ var TRANSICIONES_PERMITIDAS = {
   archivado: [],
 }
 
-export async function actualizarEstadoCaso(id, estado) {
+export async function actualizarEstadoCaso(id, estado, cnn = null) {
   if (!estado || !TRANSICIONES_PERMITIDAS[estado]) {
     throw Object.assign(new Error('Estado invalido'), { status: 400 })
   }
@@ -96,13 +96,13 @@ export async function actualizarEstadoCaso(id, estado) {
     throw Object.assign(new Error(`Transicion no permitida: ${actual.estadoCaso} -> ${estado}`), { status: 400 })
   }
 
-  return casoRepo.actualizarEstado(id, estado)
+  return casoRepo.actualizarEstado(id, estado, cnn)
 }
 
-export async function actualizarNotasConclusionesCaso(id, { notas, conclusiones }) {
+export async function actualizarNotasConclusionesCaso(id, { notas, conclusiones }, cnn = null) {
   var notasNormalizadas = normalizarTextoOpcional(notas)
   var conclusionesNormalizadas = normalizarTextoOpcional(conclusiones)
-  var actualizado = await casoRepo.actualizarNotasConclusiones(id, notasNormalizadas, conclusionesNormalizadas)
+  var actualizado = await casoRepo.actualizarNotasConclusiones(id, notasNormalizadas, conclusionesNormalizadas, cnn)
   if (!actualizado) throw Object.assign(new Error('Caso no encontrado'), { status: 404 })
   return actualizado
 }

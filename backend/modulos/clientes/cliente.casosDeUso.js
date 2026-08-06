@@ -2,7 +2,7 @@ import { default as bcryptMod } from 'bcrypt'
 import { Usuario } from '../../entidades/usuario.js'
 import * as clienteRepo from './cliente.repositorio.js'
 
-export async function registrarCliente({ identificacion, nombre, correo, contrasena, direccion, telefono }) {
+export async function registrarCliente({ identificacion, nombre, correo, contrasena, direccion, telefono }, cnn = null) {
   var ya_existe_mail = await clienteRepo.buscarPorCorreo(correo)
   if (ya_existe_mail) throw Object.assign(new Error('El correo ya esta registrado'), { status: 400 })
 
@@ -12,8 +12,8 @@ export async function registrarCliente({ identificacion, nombre, correo, contras
   var contraHash = await bcryptMod.hash(contrasena, 10)
   var usr = new Usuario({ identificacion, nombre, correo, contrasena: contraHash })
 
-  // Alta transaccional Usuario + Cliente (RF01).
-  return clienteRepo.crearUsuarioConCliente(usr, direccion, telefono)
+  // Alta transaccional Usuario + Cliente (RF01); usa `cnn` si viene de la ruta.
+  return clienteRepo.crearUsuarioConCliente(usr, direccion, telefono, cnn)
 }
 
 function sinContrasena(datos) {
@@ -30,10 +30,10 @@ export async function obtenerCliente(idUsuario) {
   return sinContrasena(c)
 }
 
-export async function actualizarCliente(idUsuario, datos) {
-  var actualizado = await clienteRepo.actualizarDatosCliente(idUsuario, datos)
+export async function actualizarCliente(idUsuario, datos, cnn = null) {
+  var actualizado = await clienteRepo.actualizarDatosCliente(idUsuario, datos, cnn)
   if (!actualizado) throw Object.assign(new Error('Cliente no encontrado'), { status: 404 })
-  return obtenerCliente(idUsuario)
+  return sinContrasena(actualizado)
 }
 
 export async function cambiarEstadoCliente(idUsuario, activo) {

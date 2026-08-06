@@ -1,115 +1,108 @@
 /**
  * Shared calendar grid utilities.
- * All date work is done in local time to match the browser's locale display.
+ * El negocio se modela en UTC pero la visualización usa America/Guayaquil
+ * (UTC-5, fijo). Todo el día/hora del grid se calcula con componentes de
+ * Guayaquil, de modo que el resultado no dependa de la zona del navegador.
  */
-import { parseServerDate, toIsoUtc } from './datetime'
+import {
+  parseServerDate,
+  toIsoUtc,
+  enGuayaquil,
+  partesEnGuayaquil,
+  isSameGyeDay,
+  startOfGyeDay,
+  HORAS_ATENCION_GYE,
+  formatearEnGuayaquil,
+} from './datetime'
 
-// Working hours (start hours of 1-hour slots):
-//   Mornings   10:00 - 12:00  -> start hours 10, 11
-//   Afternoons 15:00 - 17:00  -> start hours 15, 16
-const HORAS_ATENCION = new Set([10, 11, 15, 16])
+const DIA_MS = 24 * 3600 * 1000
 
-/** Returns the Monday of the week containing `date`. */
+/** Devuelve el lunes (00:00 Guayaquil) de la semana que contiene `date`. */
 function getWeekStart(date) {
-  const d = new Date(date)
-  const day = d.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+  const d = startOfGyeDay(date)
+  if (!d) return null
+  const day = partesEnGuayaquil(d).day // 0=Sun ... 6=Sat
   const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff)
-  d.setHours(0, 0, 0, 0)
-  return d
+  return new Date(d.getTime() + diff * DIA_MS)
 }
 
-/** Returns an array of 7 Date objects (Mon–Sun) for the week containing `referenceDate`. */
+/** Devuelve un array de 7 Date (Lun–Dom) para la semana de `referenceDate`, en Guayaquil. */
 export function getWeekDays(referenceDate) {
   const monday = getWeekStart(referenceDate)
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
+  if (!monday) return []
+  return Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * DIA_MS))
 }
 
-/** Returns an array of integer hours: [startHour, ..., endHour - 1]. */
+/** Devuelve un array de enteros: [startHour, ..., endHour - 1]. */
 export function getHourSlots(startHour = 8, endHour = 19) {
   return Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
 }
 
-function isSameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
-}
-
 /**
- * Returns items from `items` whose `_datetime` falls on `day` at `hour`.
- * All items must have a `_datetime` string/Date after being mapped through
- * mapSlotsToCalendarItems or mapCitasToCalendarItems.
+ * Devuelve los ítems de `items` cuyo `_datetime` cae en `day` (día de Guayaquil)
+ * a la hora `hour`. Todos los ítems deben tener `_datetime` tras pasar por
+ * mapSlotsToCalendarItems o mapCitasToCalendarItems.
  */
 export function getItemsForCell(items, day, hour) {
   return items.filter((item) => {
-    const d = parseServerDate(item._datetime)
-    if (!d) return false
-    return isSameDay(d, day) && d.getHours() === hour
+    const partes = partesEnGuayaquil(item._datetime)
+    if (!partes) return false
+    return isSameGyeDay(item._datetime, day) && partes.hour === hour
   })
 }
 
-/** Returns true if `date` is today. */
+/** Devuelve true si `date` (día de Guayaquil) es hoy. */
 export function isToday(date) {
-  return isSameDay(new Date(), date)
+  return isSameGyeDay(new Date(), date)
 }
 
-/** Returns a new Date shifted by `direction` weeks (+1 or -1). */
+/** Devuelve un Date desplazado `direction` semanas en el espacio de Guayaquil. */
 export function navegarSemana(referenceDate, direction) {
-  const d = new Date(referenceDate)
-  d.setDate(d.getDate() + direction * 7)
-  return d
+  const d = startOfGyeDay(referenceDate)
+  if (!d) return referenceDate
+  return new Date(d.getTime() + direction * 7 * DIA_MS)
 }
 
-/** Short column header: "lun 23/06". */
+/** Encabezado corto: "lun 23/06". Formatea en America/Guayaquil. */
 export function formatDayHeader(date) {
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(date, {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
-  }).format(date)
+  }) || ''
 }
 
-/** Hour label: "08:00". */
+/** Etiqueta de hora: "08:00". */
 export function formatHour(hour) {
   return `${String(hour).padStart(2, '0')}:00`
 }
 
 /**
- * Maps the raw availability slots from
- * GET /api/calendario/abogado/:id/disponibilidad
- * into normalised calendar items.
+ * Mapea los slots de disponibilidad (GET /api/calendario/abogado/:id/disponibilidad)
+ * a items de calendario normalizados. Filtra por horario institucional en Guayaquil.
  */
 export function mapSlotsToCalendarItems(slots) {
   return (slots || [])
     .filter((slot) => {
-      const dt = parseServerDate(slot.fechaEvento)
-      if (!dt) return false
-      const esDiaLaboral = dt.getDay() >= 1 && dt.getDay() <= 5
-      return esDiaLaboral && HORAS_ATENCION.has(dt.getHours())
+      const p = partesEnGuayaquil(slot.fechaEvento)
+      if (!p) return false
+      const esDiaLaboral = p.day >= 1 && p.day <= 5
+      return esDiaLaboral && HORAS_ATENCION_GYE.has(p.hour)
     })
     .map((slot) => ({
       id: slot.id != null ? slot.id : slot.fechaEvento,
       _datetime: toIsoUtc(slot.fechaEvento) || slot.fechaEvento,
-      label: parseServerDate(slot.fechaEvento)?.toLocaleTimeString('es-EC', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }) || 'Sin hora',
+      label:
+        formatearEnGuayaquil(slot.fechaEvento, { hour: '2-digit', minute: '2-digit' }) ||
+        'Sin hora',
       descripcion: slot.descripcion || '',
       type: 'slot',
     }))
 }
 
 /**
- * Maps the raw citas from
- * GET /api/citas/abogado/:id  or  GET /api/citas/cliente/:id
- * into normalised calendar items.
+ * Mapea las citas (GET /api/citas/abogado/:id o /api/citas/cliente/:id)
+ * a items de calendario.
  */
 export function mapCitasToCalendarItems(citas) {
   return (citas || []).map((cita) => ({
@@ -124,11 +117,12 @@ export function mapCitasToCalendarItems(citas) {
   }))
 }
 
-/** CSS class suffix for each cita status. */
+/** Sufijo de clase CSS para cada estado de cita. */
 export const STATUS_CLASS = {
   pendiente: 'warning',
   confirmada: 'success',
   cancelada: 'danger',
   completada: 'info',
   reprogramada: 'secondary',
+  rechazada: 'secondary',
 }

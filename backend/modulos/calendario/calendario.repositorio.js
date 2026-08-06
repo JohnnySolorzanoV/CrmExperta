@@ -29,7 +29,7 @@ export async function crear(slot) {
   var r = await ejecutarConsulta(
     `INSERT INTO Calendario (id_abogado, fecha_evento, descripcion)
      VALUES ($1, $2, $3)
-     RETURNING ${SQL_CAL}`,
+     RETURNING id, id_abogado as "idAbogado", fecha_evento as "fechaEvento", descripcion`,
     [slot.idAbogado, slot.fechaEvento, slot.descripcion]
   )
   return new Calendario(normalizarFilaSlot(r.rows[0]))

@@ -6,8 +6,27 @@ import { log } from './logger.js'
 // We normalize explicitly in app code to avoid implicit local-time shifts.
 pg.types.setTypeParser(1114, (value) => value)
 
-export const DB_URL = process.env.DATABASE_URL || 'postgres://postgres:admin1234@localhost:5432/crm_experta'
+const DB_URL = process.env.DATABASE_URL
 
+if (!process.env.DATABASE_URL) {
+  log.error('DB_CONFIG_MISSING', {
+    err: { message: 'Falta DATABASE_URL. Es obligatoria y no se usa ningún valor predeterminado.' },
+  })
+  console.error('ERROR: Falta la variable de entorno DATABASE_URL.')
+  process.exit(1)
+}
+
+export { DB_URL }
+
+// Convierte un valor de entorno a número con un predeterminado seguro.
+// Nunca debe reventar por valores ausentes, vacíos o no numéricos.
+function numeroSeguro(raw, predeterminado, min = 0) {
+  var n = Number(raw)
+  if (!Number.isFinite(n)) return predeterminado
+  return Math.max(min, n)
+}
+
+// Configuración del pool con valores por defecto seguros.
 export function crearConfigPool() {
   var url = new URL(DB_URL)
   url.searchParams.delete('sslmode')
@@ -15,7 +34,13 @@ export function crearConfigPool() {
   var usaSsl = /ondigitalocean\.com/i.test(url.host)
   return {
     connectionString: url.toString(),
-    ssl: usaSsl ? { rejectUnauthorized: false } : false
+    ssl: usaSsl ? { rejectUnauthorized: false } : false,
+    // El negocio se modela en UTC: fija la zona de sesion a UTC para que
+    // NOW() y las comparaciones con columnas TIMESTAMP sean deterministas.
+    options: '-c timezone=UTC',
+    connectionTimeoutMillis: 10000,
+    max: 5,
+    idleTimeoutMillis: 30000,
   }
 }
 
@@ -74,24 +99,69 @@ export async function probarConexion() {
   }
 }
 
-// Reintenta la conexión con espera entre intentos. Permite que el servicio
-// arranque cuando la base aún se está levantando y vuelva a operar tras una caída.
-export async function iniciarConexionConReintentos({
-  intentosMax = Number(process.env.DB_REINTENTOS || 6),
-  esperaMs = Number(process.env.DB_ESPERA_MS || 5000),
-} = {}) {
-  let intento = 0
+// --- Reintentos con espera progresiva y cancelación -------------------------
+
+// Incremento exponencial acotado con una pequeña variación aleatoria (±20%)
+// para evitar que varias instancias se reconecten a la vez.
+function calcularEsperaRetroceso(baseMs, maxMs, intento) {
+  var exponencial = baseMs * Math.pow(2, intento - 1)
+  var acotada = Math.min(exponencial, maxMs)
+  var jitter = acotada * 0.2 * Math.random()
+  return Math.max(0, acotada - jitter)
+}
+
+function errorAbortado() {
+  var e = new Error('Reintento de conexion cancelado por apagado')
+  e.code = 'DB_ABORTED'
+  return e
+}
+
+// Espera que respeta la señal de apagado: se cancela de inmediato si llega SIGTERM/SIGINT.
+function esperar(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal && signal.aborted) return reject(errorAbortado())
+    var temporizador = setTimeout(resolve, ms)
+    if (signal) {
+      signal.addEventListener('abort', function enAbort() {
+        clearTimeout(temporizador)
+        reject(errorAbortado())
+      }, { once: true })
+    }
+  })
+}
+
+// Comprueba PostgreSQL con reintentos controlados y espera progresiva. Si la
+// señal de apagado se aborta, corta el ciclo y devuelve { cancelado: true }.
+export async function iniciarConexionConReintentos(opts = {}) {
+  var signal = opts.signal || null
+  var intentosMax = numeroSeguro(opts.intentosMax, 0, 0)
+  var esperaInicialMs = numeroSeguro(opts.esperaInicialMs, 2000, 1)
+  var esperaMaxMs = numeroSeguro(opts.esperaMaxMs, 30000, 1)
+
+  var intento = 0
   while (true) {
+    if (signal && signal.aborted) return { cancelado: true }
+
     intento++
+    log.info('DB_CONNECT_ATTEMPT', {
+      intento,
+      intentosMax: intentosMax === 0 ? 'ilimitado' : intentosMax,
+    })
+
     try {
       await probarConexion()
       return { conectado: true, intentosRealizados: intento }
     } catch (e) {
-      if (intento >= intentosMax) {
-        throw e
+      if (intentosMax !== 0 && intento >= intentosMax) throw e
+
+      var esperaMs = calcularEsperaRetroceso(esperaInicialMs, esperaMaxMs, intento)
+      log.info('DB_RETRY_SCHEDULED', { intento, esperaMs: Math.round(esperaMs) })
+
+      try {
+        await esperar(esperaMs, signal)
+      } catch (a) {
+        return { conectado: false, cancelado: true }
       }
-      log.warn('DB_RECONEXION', { intento, esperaMs })
-      await new Promise((res) => setTimeout(res, esperaMs))
     }
   }
 }

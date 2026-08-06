@@ -62,7 +62,7 @@ describe('caso.casosDeUso', () => {
 
     var r = await actualizarNotasConclusionesCaso(11, { notas: '  Nota final  ', conclusiones: '  Conclusion final  ' })
 
-    expect(mockRepo.actualizarNotasConclusiones).toHaveBeenCalledWith(11, 'Nota final', 'Conclusion final')
+    expect(mockRepo.actualizarNotasConclusiones).toHaveBeenCalledWith(11, 'Nota final', 'Conclusion final', null)
     expect(r.notas).toBe('Nota final')
     expect(r.conclusiones).toBe('Conclusion final')
   })

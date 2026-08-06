@@ -4,16 +4,23 @@ import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { crearConfigPool } from './config/database.js'
+import { obtenerCredencialesAdmin } from './config/credencialesAdmin.js'
 
 var __dirname = dirname(fileURLToPath(import.meta.url))
 
-var CORREO_ADMIN = process.env.ADMIN_CORREO || 'admin@crm.com'
-var PASS_ADMIN = process.env.ADMIN_CONTROSENA || process.env.ADMIN_PASS || 'admin123'
-var NODE_ENV = process.env.NODE_ENV || 'development'
-
-// Seguridad: las credenciales por defecto solo son aceptables en desarrollo.
-if (NODE_ENV !== 'development' && (CORREO_ADMIN === 'admin@crm.com' || PASS_ADMIN === 'admin123')) {
-  console.warn('ADVERTENCIA: usando credenciales de administrador por defecto. Define ADMIN_CORREO/ADMIN_PASS en produccion.')
+// Seguridad: las credenciales de administrador solo tienen valores por defecto
+// en desarrollo. En produccion, si faltan, el proceso se detiene (exit 1) y
+// nunca se crea un administrador con una clave predeterminada. La contrasena
+// jamas se imprime en consola.
+var CORREO_ADMIN
+var PASS_ADMIN
+try {
+  var credenciales = obtenerCredencialesAdmin()
+  CORREO_ADMIN = credenciales.correo
+  PASS_ADMIN = credenciales.contrasena
+} catch (e) {
+  console.error(e.message)
+  process.exit(1)
 }
 
 async function verificarTablas(POOL) {
@@ -50,7 +57,7 @@ async function seed() {
 
   if (ya_existe.rows.length > 0) {
     console.log('Admin ya existe id:', ya_existe.rows[0].id)
-    console.log('mail:', CORREO_ADMIN, '/ pass:', PASS_ADMIN)
+    console.log('mail:', CORREO_ADMIN)
     await POOL.end()
     return
   }
@@ -67,7 +74,6 @@ async function seed() {
 
   console.log('Admin creado:')
   console.log('mail:', CORREO_ADMIN)
-  console.log('pass:', PASS_ADMIN)
 
   await POOL.end()
 }

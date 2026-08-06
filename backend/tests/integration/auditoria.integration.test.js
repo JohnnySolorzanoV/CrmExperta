@@ -12,6 +12,19 @@ async function contarAuditoria(accion, recurso) {
   return r.rows[0].n
 }
 
+// Las notificaciones se envían en segundo plano (fire-and-forget) después de la
+// respuesta; se espera un breve instante para que su inserción termine.
+async function esperarNotificaciones() {
+  for (var i = 0; i < 30; i++) {
+    var notif = await queryTest(
+      "SELECT COUNT(*)::int AS n FROM auditoria_logs WHERE accion = 'NOTIFICACION'"
+    )
+    if (notif.rows[0].n > 0) return notif.rows[0].n
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  return 0
+}
+
 describe('Integracion auditoria persistente', () => {
   var ids
   var tokenCliente
@@ -48,10 +61,8 @@ describe('Integracion auditoria persistente', () => {
     var citas = await contarAuditoria('CREAR', 'Cita')
     expect(citas).toBeGreaterThanOrEqual(1)
 
-    var notif = await queryTest(
-      "SELECT COUNT(*)::int AS n FROM auditoria_logs WHERE accion = 'NOTIFICACION'"
-    )
-    expect(notif.rows[0].n).toBeGreaterThanOrEqual(1)
+    var notif = await esperarNotificaciones()
+    expect(notif).toBeGreaterThanOrEqual(1)
   })
 
   it('AUD-03 los registros de auditoria contienen usuario, recurso e ip', async () => {

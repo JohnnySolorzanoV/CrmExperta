@@ -1,12 +1,10 @@
 import * as calRepo from './calendario.repositorio.js'
 import { Calendario as Cal } from '../../entidades/calendario.js'
 import { ejecutarConsulta } from '../../config/database.js'
-import { normalizarFechaIsoUTC, partesEnGuayaquil } from '../../config/datetime.js'
+import { normalizarFechaIsoUTC, partesEnUtc } from '../../config/datetime.js'
+import { HORAS_ATENCION_UTC } from '../../config/horarioInstitucional.js'
 
-// Working hours (start hours of 1-hour slots) en America/Guayaquil:
-//   Mornings   10:00 - 12:00  -> start hours 10, 11
-//   Afternoons 15:00 - 17:00  -> start hours 15, 16
-var HORAS_ATENCION = [10, 11, 15, 16]
+var HORAS_ATENCION = HORAS_ATENCION_UTC
 
 function normalizarSlotFecha(slot) {
   return {
@@ -22,7 +20,7 @@ function toUtcHourKey(value) {
 }
 
 function esHorarioAtencion(fechaIso) {
-  var partes = partesEnGuayaquil(fechaIso)
+  var partes = partesEnUtc(fechaIso)
   if (!partes || partes.dia == null || partes.hora == null) return false
   var dia = partes.dia // 0 domingo, 6 sabado
   var hora = partes.hora
@@ -47,12 +45,14 @@ export var listarDisponibilidadAbogado = async (idUsuario) => {
   if (r.rows.length === 0) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
   var pkAbogado = r.rows[0].id
 
+  // Disponibilidad pública: nunca se expone la descripción (puede contener
+  // información confidencial). Solo se devuelve id y fecha del slot.
   var disponiblesCalendario = await ejecutarConsulta(
-    `SELECT cal.id, cal.fecha_evento as "fechaEvento", cal.descripcion
+    `SELECT cal.id, cal.fecha_evento as "fechaEvento"
      FROM Calendario cal
      LEFT JOIN Cita c
        ON c.id_calendario = cal.id
-      AND c.estado_cita != 'cancelada'
+      AND c.estado_cita NOT IN ('cancelada', 'rechazada')
      WHERE cal.id_abogado = $1
        AND cal.fecha_evento >= NOW()
        AND EXTRACT(ISODOW FROM cal.fecha_evento) BETWEEN 1 AND 5
@@ -74,7 +74,7 @@ export var listarDisponibilidadAbogado = async (idUsuario) => {
     `SELECT fecha_hora_copia as "fechaHora"
      FROM Cita
      WHERE id_abogado = $1
-       AND estado_cita != 'cancelada'
+       AND estado_cita NOT IN ('cancelada', 'rechazada')
        AND fecha_hora_copia >= NOW()`,
     [pkAbogado]
   )
@@ -88,16 +88,16 @@ export var listarDisponibilidadAbogado = async (idUsuario) => {
 
   var resultados = []
   var cursor = new Date()
-  cursor.setMinutes(0, 0, 0)
-  cursor.setHours(cursor.getHours() + 1)
+  cursor.setUTCMinutes(0, 0, 0)
+  cursor.setUTCHours(cursor.getUTCHours() + 1)
 
   // Buscar disponibilidad de forma acotada (hasta 60 dias).
   var iteraciones = 0
   var maxIteraciones = 24 * 60
   while (filtradosCalendario.length + resultados.length < 20 && iteraciones < maxIteraciones) {
-    var partes = partesEnGuayaquil(cursor.toISOString())
+    var partes = partesEnUtc(cursor.toISOString())
     var esLaboral = partes && partes.dia >= 1 && partes.dia <= 5 && HORAS_ATENCION.includes(partes.hora)
-    var fechaUtcIso = new Date(cursor).toISOString()
+    var fechaUtcIso = cursor.toISOString()
     var fechaUtcKey = toUtcHourKey(fechaUtcIso)
 
     if (
@@ -109,12 +109,11 @@ export var listarDisponibilidadAbogado = async (idUsuario) => {
     ) {
       resultados.push({
         id: null,
-        fechaEvento: fechaUtcIso,
-        descripcion: 'Horario sugerido'
+        fechaEvento: fechaUtcIso
       })
     }
 
-    cursor.setHours(cursor.getHours() + 1)
+    cursor.setUTCHours(cursor.getUTCHours() + 1)
     iteraciones += 1
   }
 
