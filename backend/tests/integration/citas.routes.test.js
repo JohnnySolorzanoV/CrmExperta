@@ -1,8 +1,23 @@
 import request from 'supertest'
+import bcrypt from 'bcrypt'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { APP } from '../../server.js'
 import { crearTokenTest } from '../helpers/authTestUtils.js'
-import { verificarBasePruebasDisponible, resetearBasePruebas, sembrarUsuariosBase, proximaFranjaLaborable } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, resetearBasePruebas, sembrarUsuariosBase, proximaFranjaLaborable, queryTest } from '../helpers/dbTestUtils.js'
+
+async function crearAbogadoAdicional() {
+  var hash = await bcrypt.hash('Clave123*', 10)
+  var u = await queryTest(
+    `INSERT INTO Usuario (identificacion, nombre, correo, contrasena)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    ['0202000097', 'Abogado Adicional', 'abogadoAdicional@test.com', hash]
+  )
+  await queryTest(
+    `INSERT INTO Abogado (id_usuario, num_licencia, especialidad) VALUES ($1, $2, $3)`,
+    [u.rows[0].id, 'MAT-TEST-997', 'Penal']
+  )
+  return u.rows[0].id
+}
 
 describe('Integracion /api/citas', () => {
   var baseIds
@@ -68,10 +83,9 @@ describe('Integracion /api/citas', () => {
     expect(r2.body.error).toBe('Este abogado ya tiene una cita en esa hora')
   })
 
-  it('INT-CITAS-03 GET /api/citas exige autenticacion y responde 401 sin token', async () => {
+  it('INT-CITAS-03 GET /api/citas ya no existe (listado global retirado)', async () => {
     var r = await request(APP).get('/api/citas')
-    expect(r.status).toBe(401)
-    expect(r.body.error).toBe('Token requerido')
+    expect(r.status).toBe(404)
   })
 
   it('INT-CITAS-04 GET /api/citas/cliente/:idUsuario devuelve fechas serializadas en ISO UTC', async () => {
@@ -129,9 +143,9 @@ describe('Integracion /api/citas', () => {
   it('RF05-02 POST /api/citas rechaza un fin de semana', async () => {
     function encontrarFinDeSemanaFuturo() {
       var d = new Date()
-      d.setDate(d.getDate() + 3)
-      while (d.getDay() !== 0 && d.getDay() !== 6) d.setDate(d.getDate() + 1)
-      d.setHours(10, 0, 0, 0)
+      d.setUTCDate(d.getUTCDate() + 3)
+      while (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) d.setUTCDate(d.getUTCDate() + 1)
+      d.setUTCHours(16, 0, 0, 0)
       return d.toISOString()
     }
     var r = await request(APP)
@@ -168,5 +182,32 @@ describe('Integracion /api/citas', () => {
 
     expect(r.status).toBe(200)
     expect(r.body.cita.estadoCita).toBe('confirmada')
+  })
+
+  it('INT-CITAS-06 solo el abogado asignado puede aceptar/rechazar/completar (abogado ajeno recibe 403)', async () => {
+    var creada = await request(APP)
+      .post('/api/citas')
+      .set('Authorization', 'Bearer ' + tokenCliente)
+      .send({ idCliente: baseIds.clienteUsuarioId, idAbogado: baseIds.abogadoUsuarioId, fechaHoraCopia: proximaFranjaLaborable({ minuto: 40 }), motivo: 'Autorizacion' })
+      .expect(201)
+
+    var tokenAbogado = crearTokenTest({ id: baseIds.abogadoUsuarioId, correo: 'abogado@test.com', roles: ['abogado'] })
+    var abogadoAjenoId = await crearAbogadoAdicional()
+    var tokenAjeno = crearTokenTest({ id: abogadoAjenoId, correo: 'abogadoAdicional@test.com', roles: ['abogado'] })
+
+    var id = creada.body.cita.id
+
+    var rehaza = await request(APP).put('/api/citas/' + id + '/rechazar').set('Authorization', 'Bearer ' + tokenAjeno)
+    expect(rehaza.status).toBe(403)
+
+    var completa = await request(APP).put('/api/citas/' + id + '/completar').set('Authorization', 'Bearer ' + tokenAjeno)
+    expect(completa.status).toBe(403)
+
+    var acepta = await request(APP).put('/api/citas/' + id + '/aceptar').set('Authorization', 'Bearer ' + tokenAjeno)
+    expect(acepta.status).toBe(403)
+
+    var propietario = await request(APP).put('/api/citas/' + id + '/aceptar').set('Authorization', 'Bearer ' + tokenAbogado)
+    expect(propietario.status).toBe(200)
+    expect(propietario.body.cita.estadoCita).toBe('confirmada')
   })
 })

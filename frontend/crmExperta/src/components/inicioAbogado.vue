@@ -5,7 +5,7 @@ import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
 import { mapCitasToCalendarItems } from '../utils/calendarGrid'
 import { apiFetch } from '../utils/api'
-import { parseServerDate } from '../utils/datetime'
+import { parseServerDate, formatearEnGuayaquil } from '../utils/datetime'
 
 const usuarioStore = useUsuarioStore()
 const router = useRouter()
@@ -48,6 +48,7 @@ const ESTADO_CITA_LABEL = {
   cancelada: 'Cancelada',
   completada: 'Completada',
   reprogramada: 'Reprogramada',
+  rechazada: 'Rechazada',
 }
 
 const ESTADO_CITA_VARIANT = {
@@ -56,6 +57,24 @@ const ESTADO_CITA_VARIANT = {
   cancelada: 'danger',
   completada: 'muted',
   reprogramada: 'warn',
+  rechazada: 'muted',
+}
+
+// Acciones permitidas según el estado de la cita, alineadas con el backend.
+// "Rechazar" (pendiente) cubre el declarar ante una solicitud; "Cancelar" se
+// usa solo cuando la cita ya está agendada (confirmada/reprogramada).
+const ACCIONES_CITA = {
+  pendiente: ['aceptar', 'rechazar'],
+  confirmada: ['completar', 'cancelar', 'crear-caso'],
+  reprogramada: ['cancelar'],
+}
+
+const ACCION_CITA_BTN = {
+  aceptar: ['ghost', 'Aceptar'],
+  rechazar: ['danger', 'Rechazar'],
+  completar: ['primary', 'Completar'],
+  cancelar: ['danger', 'Cancelar'],
+  'crear-caso': ['primary', 'Crear caso'],
 }
 
 const formCaso = ref({
@@ -78,7 +97,10 @@ const citasOrdenadas = computed(() =>
 
 const proximaCita = computed(() => {
   const ahora = Date.now()
-  return citasOrdenadas.value.find((cita) => getMillis(cita.fechaHoraCopia) > ahora) || null
+  const cerradas = ['cancelada', 'rechazada', 'completada']
+  return citasOrdenadas.value.find(
+    (cita) => getMillis(cita.fechaHoraCopia) > ahora && !cerradas.includes(cita.estadoCita)
+  ) || null
 })
 
 const citasPendientesConfirmacion = computed(
@@ -108,23 +130,19 @@ function authHeaders() {
 
 function formatearDia(fechaIso) {
   if (!fechaIso) return 'Sin día'
-  const fecha = parseServerDate(fechaIso)
-  if (!fecha) return 'Sin día'
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(fechaIso, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
-  }).format(fecha)
+  }) || 'Sin día'
 }
 
 function formatearHora(fechaIso) {
   if (!fechaIso) return 'Sin hora'
-  const fecha = parseServerDate(fechaIso)
-  if (!fecha) return 'Sin hora'
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(fechaIso, {
     hour: '2-digit',
     minute: '2-digit',
-  }).format(fecha)
+  }) || 'Sin hora'
 }
 
 async function fetchDatos() {
@@ -146,7 +164,9 @@ async function fetchCitas() {
     const res = await apiFetch(`/citas/abogado/${abogadoId.value}`, { headers: authHeaders() })
     if (!res.ok) throw new Error('No se pudieron cargar las citas')
     const data = await res.json()
-    citas.value = (data.citas || []).filter((c) => c.estadoCita !== 'cancelada')
+    // Se conservan todos los estados (incluida cancelada) para que cada uno
+    // muestre solo sus acciones válidas y los cambios persistan tras recargar.
+    citas.value = data.citas || []
   } catch (e) {
     mensaje.value = e.message
   } finally {
@@ -177,6 +197,14 @@ function cancelarCita(id) {
   motivoCancelar.value = ''
   errorCancelar.value = ''
   mostrandoCancelar.value = true
+}
+
+function ejecutarAccionCita(accion, cita) {
+  if (accion === 'aceptar') return aceptarCita(cita.id)
+  if (accion === 'rechazar') return rechazarCita(cita.id)
+  if (accion === 'completar') return completarCita(cita.id)
+  if (accion === 'cancelar') return cancelarCita(cita.id)
+  if (accion === 'crear-caso') return abrirCrearCaso(cita)
 }
 
 function cerrarCancelar() {
@@ -225,10 +253,44 @@ async function aceptarCita(id) {
   }
 }
 
+async function rechazarCita(id) {
+  if (!confirm('¿Rechazar esta cita?')) return
+  if (!usuarioStore.token) {
+    mensaje.value = 'Debes iniciar sesión para rechazar una cita.'
+    return
+  }
+  try {
+    const res = await apiFetch(`/citas/${id}/rechazar`, { method: 'PUT', headers: authHeaders() })
+    if (!res.ok) throw new Error('No se pudo rechazar la cita')
+    await fetchCitas()
+  } catch (e) {
+    mensaje.value = e.message
+  }
+}
+
+async function completarCita(id) {
+  if (!confirm('¿Marcar esta cita como completada?')) return
+  if (!usuarioStore.token) {
+    mensaje.value = 'Debes iniciar sesión para completar una cita.'
+    return
+  }
+  try {
+    const res = await apiFetch(`/citas/${id}/completar`, { method: 'PUT', headers: authHeaders() })
+    if (!res.ok) throw new Error('No se pudo completar la cita')
+    await fetchCitas()
+  } catch (e) {
+    mensaje.value = e.message
+  }
+}
+
 /** Handles action buttons emitted from WeeklyCalendarGrid in view mode. */
 async function onCalendarAction(action, rawCita) {
   if (action === 'aceptar') {
     await aceptarCita(rawCita.id)
+  } else if (action === 'rechazar') {
+    await rechazarCita(rawCita.id)
+  } else if (action === 'completar') {
+    await completarCita(rawCita.id)
   } else if (action === 'cancelar') {
     await cancelarCita(rawCita.id)
   } else if (action === 'crear-caso') {
@@ -282,7 +344,9 @@ async function crearCasoDesdeCita() {
       throw new Error(data?.error || data?.mensaje || 'No se pudo crear el caso.')
     }
     await fetchCasos()
-    citas.value = citas.value.filter((c) => c.id !== citaSeleccionada.value.id)
+    // No se elimina la cita solo en pantalla: se recarga desde el servidor para
+    // que la interfaz refleje el estado persistido.
+    await fetchCitas()
     cerrarCrearCaso()
   } catch (e) {
     errorCaso.value = e.message
@@ -426,25 +490,13 @@ async function crearCasoDesdeCita() {
               </span>
               <div class="ia-actions">
                 <button
-                  v-if="c.estadoCita !== 'confirmada' && c.estadoCita !== 'cancelada' && c.estadoCita !== 'completada'"
-                  class="ia-btn ia-btn--ghost"
-                  @click="aceptarCita(c.id)"
+                  v-for="accion in (ACCIONES_CITA[c.estadoCita] || [])"
+                  :key="accion"
+                  class="ia-btn"
+                  :class="`ia-btn--${ACCION_CITA_BTN[accion]?.[0] || 'ghost'}`"
+                  @click="ejecutarAccionCita(accion, c)"
                 >
-                  Aceptar
-                </button>
-                <button
-                  v-if="c.estadoCita === 'confirmada'"
-                  class="ia-btn ia-btn--primary"
-                  @click="abrirCrearCaso(c)"
-                >
-                  Crear caso
-                </button>
-                <button
-                  class="ia-btn ia-btn--danger"
-                  @click="cancelarCita(c.id)"
-                  :disabled="c.estadoCita === 'cancelada'"
-                >
-                  Cancelar
+                  {{ ACCION_CITA_BTN[accion]?.[1] || accion }}
                 </button>
               </div>
             </div>

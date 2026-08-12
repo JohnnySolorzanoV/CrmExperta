@@ -5,7 +5,8 @@ import { useUsuarioStore } from '../stores/usuariostore'
 import WeeklyCalendarGrid from './WeeklyCalendarGrid.vue'
 import { mapCitasToCalendarItems, mapSlotsToCalendarItems } from '../utils/calendarGrid'
 import { apiFetch } from '../utils/api'
-import { isPastDate, parseServerDate } from '../utils/datetime'
+import { isPastDate, parseServerDate, formatearEnGuayaquil } from '../utils/datetime'
+import { getWeekDays } from '../utils/calendarGrid'
 
 const usuarioStore = useUsuarioStore()
 const router = useRouter()
@@ -95,27 +96,21 @@ const calendarItems = computed(() => mapCitasToCalendarItems(reservas.value))
 
 function formatearFecha(fechaIso) {
   if (!fechaIso) return 'Sin hora'
-  var fecha = parseServerDate(fechaIso)
-  if (!fecha) return 'Sin hora'
-  return new Intl.DateTimeFormat('es-EC', { hour: '2-digit', minute: '2-digit' }).format(fecha)
+  return formatearEnGuayaquil(fechaIso, { hour: '2-digit', minute: '2-digit' }) || 'Sin hora'
 }
 
 function formatearDia(fechaIso) {
   if (!fechaIso) return 'Sin día'
-  var fecha = parseServerDate(fechaIso)
-  if (!fecha) return 'Sin día'
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(fechaIso, {
     weekday: 'long', day: '2-digit', month: 'long',
-  }).format(fecha)
+  }) || 'Sin día'
 }
 
 function formatearDiaCorto(fechaIso) {
   if (!fechaIso) return '–'
-  var fecha = parseServerDate(fechaIso)
-  if (!fecha) return '–'
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(fechaIso, {
     day: '2-digit', month: 'short',
-  }).format(fecha)
+  }) || '–'
 }
 
 function esReservaPasada(fechaIso) {
@@ -148,11 +143,8 @@ const proximaCita = computed(() => {
 
 const citasPendientesEstaSemana = computed(() => {
   const ahora = new Date()
-  const inicio = new Date(ahora)
-  inicio.setDate(ahora.getDate() - ahora.getDay())
-  inicio.setHours(0, 0, 0, 0)
-  const fin = new Date(inicio)
-  fin.setDate(inicio.getDate() + 7)
+  const inicio = getWeekDays(ahora)[0]
+  const fin = new Date(inicio.getTime() + 7 * 24 * 3600 * 1000)
   return reservas.value.filter(r => {
     const d = parseServerDate(r.fechaHoraCopia)
     if (!d) return false
@@ -291,11 +283,17 @@ async function abrirReagendar(cita) {
 }
 
 function cerrarReagendar() {
-  mostrandoReagendar.value = false
   citaReagendar.value = null
   slotReagendarKey.value = ''
   errorReagendar.value = ''
   slotsReagendar.value = []
+  mostrandoReagendar.value = false
+}
+
+/** Handles client action buttons emitted from WeeklyCalendarGrid (view mode). */
+function onClienteCitaAction(action, rawCita) {
+  if (action === 'reagendar') abrirReagendar(rawCita)
+  else if (action === 'cancelar') abrirCancelar(rawCita.id)
 }
 
 async function cargarSlotsReagendar() {
@@ -522,7 +520,8 @@ watch(
         <WeeklyCalendarGrid
           :items="calendarItems"
           mode="view"
-          :readonly="true"
+          cliente
+          @cita-action="onClienteCitaAction"
         />
         </div>
       </template>

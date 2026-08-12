@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
-import { registrarAuditoria } from '../auditoria/auditoria.servicio.js'
+import { ejecutarConAuditoria } from '../auditoria/auditoria.servicio.js'
 import {
   listarAbogados, obtenerAbogado, buscarPorEspecialidad,
   crearAbogado, actualizarAbogado, eliminarAbogado
@@ -31,24 +31,40 @@ router.get('/especialidad/:especialidad', verificarToken, async (req, res, next)
 
 router.post('/', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
-    var a = await crearAbogado(req.body)
-    await registrarAuditoria({ req, accion: 'CREAR', recurso: 'Abogado', recursoId: a.id, detalle: 'alta de abogado' })
+    var a = await ejecutarConAuditoria({
+      req,
+      accion: 'CREAR',
+      recurso: 'Abogado',
+      detalle: 'alta de abogado',
+      tarea: (cnn) => crearAbogado(req.body, cnn),
+    })
     res.status(201).json({ mensaje: 'Abogado creado', abogado: a })
   } catch (error) { next(error) }
 })
 
 router.put('/:id', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
-    var a = await actualizarAbogado(Number(req.params.id), req.body)
-    await registrarAuditoria({ req, accion: 'MODIFICAR', recurso: 'Abogado', recursoId: a.id, detalle: 'actualizacion de abogado' })
+    var a = await ejecutarConAuditoria({
+      req,
+      accion: 'MODIFICAR',
+      recurso: 'Abogado',
+      detalle: 'actualizacion de abogado',
+      tarea: (cnn) => actualizarAbogado(Number(req.params.id), req.body, cnn),
+    })
     res.json({ mensaje: 'Abogado actualizado', abogado: a })
   } catch (error) { next(error) }
 })
 
 router.delete('/:id', verificarToken, verificarRol('administrador'), async (req, res, next) => {
   try {
-    var R = await eliminarAbogado(Number(req.params.id))
-    await registrarAuditoria({ req, accion: 'ELIMINAR', recurso: 'Abogado', recursoId: Number(req.params.id), detalle: 'eliminacion de abogado' })
+    var R = await ejecutarConAuditoria({
+      req,
+      accion: 'ELIMINAR',
+      recurso: 'Abogado',
+      recursoId: Number(req.params.id),
+      detalle: 'eliminacion de abogado',
+      tarea: (cnn) => eliminarAbogado(Number(req.params.id), cnn),
+    })
     res.json(R)
   } catch (error) { next(error) }
 })

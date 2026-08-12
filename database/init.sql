@@ -91,12 +91,18 @@ CREATE TABLE IF NOT EXISTS Documento (
 );
 
 
--- One active (non-cancelled) appointment per lawyer per clock-hour.
--- Partial index so cancelled rows do not block the slot.
+-- One active (non-cancelled, non-rejected) appointment per lawyer per clock-hour.
+-- Partial index so cancelled/rejected rows do not block the slot.
 -- Run once and is idempotent via IF NOT EXISTS. If existing duplicates exist, clean them first.
 CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_abogado_hora_activa
   ON Cita (id_abogado, date_trunc('hour', fecha_hora_copia))
-  WHERE estado_cita != 'cancelada';
+  WHERE estado_cita NOT IN ('cancelada', 'rechazada');
+
+-- Una cita activa por slot de calendario: impide vincular dos citas al mismo
+-- idCalendario. Las canceladas/rechazadas liberan el horario.
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_cita_calendario_activa
+  ON Cita (id_calendario)
+  WHERE id_calendario IS NOT NULL AND estado_cita NOT IN ('cancelada', 'rechazada');
 
 -- Auditoría persistente: trazabilidad de acciones de negocio.
 CREATE TABLE IF NOT EXISTS auditoria_logs (
@@ -117,3 +123,25 @@ CREATE INDEX IF NOT EXISTS idx_auditoria_recurso ON auditoria_logs (recurso, rec
 -- Migración idempotente para bases existentes: expiración del token de
 -- recuperación de contraseña (RF17). En CREATE TABLE anterior también se define.
 ALTER TABLE Usuario ADD COLUMN IF NOT EXISTS reset_token_expira TIMESTAMP;
+
+-- Notificaciones con estado explícito (pendiente / enviada / fallida).
+-- Permite rastrear cada envío de correo, registrar errores externos sin romper
+-- la operación de negocio y reprocesar envíos fallidos controladamente.
+CREATE TABLE IF NOT EXISTS Notificacion (
+    id SERIAL PRIMARY KEY,
+    id_cita INTEGER REFERENCES Cita(id) ON DELETE CASCADE,
+    tipo VARCHAR(50) NOT NULL,
+    destinatario VARCHAR(100) NOT NULL,
+    asunto VARCHAR(255),
+    titulo VARCHAR(255),
+    lineas JSONB,
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'enviada', 'fallida')),
+    intentos INTEGER NOT NULL DEFAULT 0,
+    intentos_max INTEGER NOT NULL DEFAULT 3,
+    ultimo_error VARCHAR(500),
+    ultimo_intento_en TIMESTAMP,
+    creada_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actualizada_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_notificacion_estado ON Notificacion (estado, intentos_max);
+CREATE INDEX IF NOT EXISTS idx_notificacion_cita ON Notificacion (id_cita);

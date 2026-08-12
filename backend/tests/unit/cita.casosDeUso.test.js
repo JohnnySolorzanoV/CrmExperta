@@ -12,6 +12,8 @@ var mockRepo = {
 
 var mockDb = {
   ejecutarConsulta: vi.fn(),
+  // Simula una transacción que ejecuta la tarea con un cliente de solo lectura.
+  ejecutarEnTransaccion: vi.fn(async (task) => task({ query: vi.fn() })),
 }
 
 vi.mock('../../modulos/citas/cita.repositorio.js', () => mockRepo)
@@ -46,7 +48,7 @@ describe('cita.casosDeUso', () => {
       agendarCita({
         idCliente: 1,
         idAbogado: 2,
-        fechaHoraCopia: '2030-06-05T14:00:00.000Z',
+        fechaHoraCopia: '2030-06-05T16:00:00.000Z',
         motivo: 'Consulta',
       })
     ).rejects.toMatchObject({

@@ -63,7 +63,11 @@ function getSmtpTransporter() {
 export async function enviarEmail({ para, asunto, titulo, lineas }) {
   if (!SMTP_HABILITADO) {
     log.info('EMAIL_SMTP_OMITIDO', { asunto })
-    await registrarNotificacion({ para, asunto, resultado: 'omitido' }).catch(() => {})
+    try {
+      await registrarNotificacion({ para, asunto, resultado: 'omitido' })
+    } catch (e) {
+      log.error('AUDITORIA_ERR', { err: e?.message, contexto: 'notificacion omitida' })
+    }
     return { estado: 'omitido' }
   }
 
@@ -77,13 +81,21 @@ export async function enviarEmail({ para, asunto, titulo, lineas }) {
         html: plantillaHtml(titulo, lineas),
       })
       log.info('EMAIL_SMTP_ENVIADO', { messageId: info.messageId, intento })
-      await registrarNotificacion({ para, asunto: info.messageId, resultado: 'exito' }).catch(() => {})
+      try {
+        await registrarNotificacion({ para, asunto: info.messageId, resultado: 'exito' })
+      } catch (e) {
+        log.error('AUDITORIA_ERR', { err: e?.message, contexto: 'notificacion enviada' })
+      }
       return { estado: 'exito', messageId: info.messageId }
     } catch (e) {
-      log.warn('EMAIL_SMTP_ERR', { err: e.message, intento, para })
+      log.warn('EMAIL_SMTP_ERR', { err: e.message, intento })
     }
   }
 
-  await registrarNotificacion({ para, asunto, resultado: 'fallido', detalle: 'SMTP no disponible' }).catch(() => {})
+  try {
+    await registrarNotificacion({ para, asunto, resultado: 'fallido', detalle: 'SMTP no disponible' })
+  } catch (e) {
+    log.error('AUDITORIA_ERR', { err: e?.message, contexto: 'notificacion fallida' })
+  }
   return { estado: 'fallido', detalle: 'SMTP no disponible' }
 }

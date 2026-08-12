@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUsuarioStore } from '../stores/usuariostore'
 import { apiFetch } from '../utils/api'
+import { formatearEnGuayaquil } from '../utils/datetime'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,12 +38,12 @@ function authHeaders() {
 
 function formatearFecha(fechaIso) {
   if (!fechaIso) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(fechaIso, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
     year: 'numeric'
-  }).format(new Date(fechaIso))
+  }) || 'Sin fecha'
 }
 
 function nombreDescarga(doc) {

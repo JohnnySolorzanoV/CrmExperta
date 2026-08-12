@@ -1,19 +1,20 @@
 import { ejecutarConsulta } from '../../config/database.js'
 import { enviarEmail } from '../../config/google.js'
 import { log } from '../../config/logger.js'
+import { formatearEnGuayaquil } from '../../config/datetime.js'
 
 var ESTADOS_RECORDATORIO = ['pendiente', 'confirmada', 'reprogramada']
 var INTERVALO_MS = 15 * 60 * 1000
 
 function formatearFechaLegible(fecha) {
-  return new Intl.DateTimeFormat('es-EC', {
+  return formatearEnGuayaquil(fecha, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(fecha))
+  })
 }
 
 export async function enviarRecordatoriosPendientes() {

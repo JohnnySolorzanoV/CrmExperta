@@ -6,6 +6,10 @@ var SQL_CAMPOS = `id, estado_caso as "estadoCaso", fecha_apertura as "fechaApert
                   notas, conclusiones,
                   id_cliente as "idCliente", id_abogado as "idAbogado"`
 
+function conClient(cnn) {
+  return cnn ? (txt, prms) => cnn.query(txt, prms) : ejecutarConsulta
+}
+
 export async function obtenerTodos() {
   var r = await ejecutarConsulta(`SELECT ${SQL_CAMPOS} FROM Caso ORDER BY fecha_apertura DESC`)
   return r.rows.map(row => new Caso(row))
@@ -47,8 +51,9 @@ export async function buscarPorAbogado(idA) {
   return r.rows.map(row => new Caso(row))
 }
 
-export async function crear(caso) {
-  var r = await ejecutarConsulta(
+export async function crear(caso, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `INSERT INTO Caso (estado_caso, tipo_caso, nombre_caso, notas, conclusiones, id_cliente, id_abogado)
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${SQL_CAMPOS}`,
     [caso.estadoCaso, caso.tipoCaso, caso.nombreCaso, caso.notas, caso.conclusiones, caso.idCliente, caso.idAbogado]
@@ -56,8 +61,9 @@ export async function crear(caso) {
   return new Caso(r.rows[0])
 }
 
-export async function actualizarEstado(id, estado) {
-  var r = await ejecutarConsulta(
+export async function actualizarEstado(id, estado, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `UPDATE Caso SET estado_caso = $1 WHERE id = $2 RETURNING ${SQL_CAMPOS}`,
     [estado, id]
   )
@@ -65,8 +71,9 @@ export async function actualizarEstado(id, estado) {
   return new Caso(r.rows[0])
 }
 
-export async function actualizarNotasConclusiones(id, notas, conclusiones) {
-  var r = await ejecutarConsulta(
+export async function actualizarNotasConclusiones(id, notas, conclusiones, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `UPDATE Caso
      SET notas = $1, conclusiones = $2
      WHERE id = $3

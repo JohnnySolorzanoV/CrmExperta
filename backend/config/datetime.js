@@ -54,3 +54,25 @@ export function partesEnGuayaquil(value) {
     hora: parseInt(campos.hour, 10)
   }
 }
+
+// Devuelve { dia (0-6, domingo=0), hora (0-23) } en UTC. Los datos de negocio se
+// almacenan en UTC, por lo que las reglas de agenda se validan contra estos
+// componentes para no depender de la zona horaria del servidor.
+export function partesEnUtc(value) {
+  var parsed = parseAsUtcDate(value)
+  if (!parsed) return null
+  return {
+    dia: parsed.getUTCDay(),
+    hora: parsed.getUTCHours()
+  }
+}
+
+// Formatea una fecha en America/Guayaquil con el locale dado (presentacion).
+export function formatearEnGuayaquil(value, opciones = {}) {
+  var parsed = parseAsUtcDate(value)
+  if (!parsed) return null
+  return new Intl.DateTimeFormat('es-EC', {
+    timeZone: ZONA_ECUADOR,
+    ...opciones
+  }).format(parsed)
+}

@@ -10,6 +10,7 @@ import {
   isToday,
   STATUS_CLASS,
 } from '../utils/calendarGrid'
+import { partesEnGuayaquil, formatearEnGuayaquil, isSameGyeDay } from '../utils/datetime'
 
 /**
  * WeeklyCalendarGrid — reusable weekly calendar grid.
@@ -26,7 +27,9 @@ import {
  * Emits:
  *  update:modelValue(id)    — when a slot is clicked in select mode.
  *  cita-action(action, raw) — when an action button is clicked in view mode.
- *                             action is 'aceptar' | 'cancelar' | 'crear-caso'.
+ *                             action is 'aceptar' | 'rechazar' | 'completar' |
+ *                             'cancelar' | 'crear-caso' (abogado); or
+ *                             'reagendar' | 'cancelar' (cliente).
  */
 
 const props = defineProps({
@@ -37,6 +40,8 @@ const props = defineProps({
   endHour: { type: Number, default: 20 },
   /** When true, hides the action buttons on cita cards (useful for read-only client view). */
   readonly: { type: Boolean, default: false },
+  /** When true (in view mode), shows client actions (Reagendar/Cancelar) instead of lawyer actions. */
+  cliente: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'cita-action'])
@@ -48,7 +53,7 @@ let nowTimer = null
 const weekDays = computed(() => getWeekDays(currentDate.value))
 const visibleWeekDays = computed(() =>
   weekDays.value.filter((day) => {
-    const weekday = day.getDay()
+    const weekday = partesEnGuayaquil(day)?.day
     return weekday >= 1 && weekday <= 5
   })
 )
@@ -58,7 +63,7 @@ const weekLabel = computed(() => {
   const days = visibleWeekDays.value
   if (days.length === 0) return ''
   const fmt = (d) =>
-    d.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })
+    formatearEnGuayaquil(d, { day: '2-digit', month: 'short', year: 'numeric' })
   return `${fmt(days[0])} – ${fmt(days[days.length - 1])}`
 })
 
@@ -84,12 +89,7 @@ const hasItemsButNoneThisWeek = computed(() => {
   const days = visibleWeekDays.value
   return !props.items.some((item) => {
     const d = new Date(item._datetime)
-    return days.some(
-      (day) =>
-        d.getFullYear() === day.getFullYear() &&
-        d.getMonth() === day.getMonth() &&
-        d.getDate() === day.getDate()
-    )
+    return days.some((day) => isSameGyeDay(d, day))
   })
 })
 
@@ -132,8 +132,57 @@ function statusLabel(status) {
     cancelada: 'Cancelada',
     completada: 'Completada',
     reprogramada: 'Reprogramada',
+    rechazada: 'Rechazada',
   }
   return labels[status] || status
+}
+
+/**
+ * Acciones permitidas según el estado de la cita, alineadas con el backend:
+ *  pendiente   -> Aceptar, Rechazar
+ *  confirmada  -> Completar, Cancelar, Crear caso
+ *  reprogramada-> Cancelar
+ *  rechazada, cancelada, completada -> ninguna
+ */
+function accionesCita(status) {
+  switch (status) {
+    case 'pendiente': return ['aceptar', 'rechazar']
+    case 'confirmada': return ['completar', 'cancelar', 'crear-caso']
+    case 'reprogramada': return ['cancelar']
+    default: return []
+  }
+}
+
+/** Acciones válidas para el cliente (Reagendar/Cancelar) en citas activas. */
+function accionesClienteCita(status) {
+  if (status === 'pendiente' || status === 'confirmada' || status === 'reprogramada') {
+    return ['reagendar', 'cancelar']
+  }
+  return []
+}
+
+function accionBtnClase(accion) {
+  const clases = {
+    aceptar: 'btn-outline-success',
+    rechazar: 'btn-outline-danger',
+    completar: 'btn-outline-primary',
+    cancelar: 'btn-outline-danger',
+'crear-caso': 'btn-outline-primary',
+    reagendar: 'btn-outline-primary',
+  }
+  return clases[accion] || 'btn-outline-secondary'
+}
+
+function accionBtnTexto(accion) {
+  const textos = {
+    aceptar: 'Aceptar',
+    rechazar: 'Rechazar',
+    completar: 'Completar',
+    cancelar: 'Cancelar',
+    'crear-caso': 'Crear caso',
+    reagendar: 'Reagendar',
+  }
+  return textos[accion] || accion
 }
 
 function isPastItem(item) {
@@ -143,10 +192,13 @@ function isPastItem(item) {
 
 function showCurrentTimeLine(day, hour) {
   if (!isToday(day)) return false
-  return now.value.getHours() === hour
+  return partesEnGuayaquil(now.value)?.hour === hour
 }
 
-const currentMinutePercent = computed(() => (now.value.getMinutes() / 60) * 100)
+const currentMinutePercent = computed(() => {
+  const p = partesEnGuayaquil(now.value)
+  return ((p?.minute ?? 0) / 60) * 100
+})
 
 onMounted(() => {
   nowTimer = setInterval(() => {
@@ -243,37 +295,23 @@ onBeforeUnmount(() => {
                   ]"
                 >
                   <div class="wcg-cita-label">{{ item.label }}</div>
-                  <div class="wcg-cita-time">{{ item._datetime ? new Date(item._datetime).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '' }}</div>
+                  <div class="wcg-cita-time">{{ item._datetime ? formatearEnGuayaquil(item._datetime, { hour: '2-digit', minute: '2-digit' }) : '' }}</div>
                   <span class="wcg-cita-badge badge" :class="`bg-${statusClass(item.status)}`">
                     {{ statusLabel(item.status) }}
                   </span>
                   <div v-if="item.motivo" class="wcg-cita-motivo">{{ item.motivo }}</div>
 
-                  <!-- Action buttons for lawyer view (hidden when readonly) -->
+                  <!-- Action buttons for lawyer/client view (hidden when readonly) -->
                   <div v-if="!readonly" class="wcg-cita-actions mt-1 d-flex gap-1 flex-wrap">
                     <button
-                      v-if="item.status !== 'confirmada' && item.status !== 'cancelada' && item.status !== 'completada'"
-                      class="btn btn-xs btn-outline-success"
-                      @click.stop="citaAction('aceptar', item)"
+                      v-for="accion in (props.cliente ? accionesClienteCita(item.status) : accionesCita(item.status))"
+                      :key="accion"
+                      class="btn btn-xs"
+                      :class="accionBtnClase(accion)"
+                      @click.stop="citaAction(accion, item)"
                       :disabled="isPastItem(item)"
                     >
-                      Aceptar
-                    </button>
-                    <button
-                      v-if="item.status === 'confirmada'"
-                      class="btn btn-xs btn-outline-primary"
-                      @click.stop="citaAction('crear-caso', item)"
-                      :disabled="isPastItem(item)"
-                    >
-                      Crear caso
-                    </button>
-                    <button
-                      v-if="item.status !== 'cancelada'"
-                      class="btn btn-xs btn-outline-danger"
-                      @click.stop="citaAction('cancelar', item)"
-                      :disabled="isPastItem(item)"
-                    >
-                      Cancelar
+                      {{ accionBtnTexto(accion) }}
                     </button>
                   </div>
                 </div>

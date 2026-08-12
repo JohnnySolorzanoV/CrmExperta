@@ -2,6 +2,12 @@ import { ejecutarConsulta as query } from '../../config/database.js'
 import { Cita } from '../../entidades/cita.js'
 import { normalizarFechaIsoUTC } from '../../config/datetime.js'
 
+// Si recibe un cliente (`cnn`), ejecuta dentro de esa transacción; si no, usa
+// la conexión compartida. Permite validar y persistir de forma atómica.
+function conClient(cnn) {
+  return cnn ? (txt, prms) => cnn.query(txt, prms) : query
+}
+
 var SQL_COLS = `id, id_cliente as "idCliente", id_abogado as "idAbogado",
                 fecha_hora_copia as "fechaHoraCopia", id_calendario as "idCalendario",
                 motivo, estado_cita as "estadoCita", resumen_chatbot as "resumenChatbot",
@@ -80,27 +86,38 @@ export async function buscarPorAbogado(idA) {
   return r.rows.map(row => new Cita(normalizarFilaCita(row)))
 }
 
-export async function slotOcupado(idCal) {
-  var r = await query('SELECT id FROM Cita WHERE id_calendario = $1 AND estado_cita != $2', [idCal, 'cancelada'])
+export async function slotOcupado(idCal, excluirCitaId = null, cnn = null) {
+  var q = conClient(cnn)
+  // Las citas canceladas o rechazadas liberan el horario: no bloquean el slot.
+  var sql = 'SELECT id FROM Cita WHERE id_calendario = $1 AND estado_cita NOT IN ($2, $3)'
+  var params = [idCal, 'cancelada', 'rechazada']
+  // Al reprogramar se excluye la propia cita en curso.
+  if (excluirCitaId != null) {
+    sql += ' AND id != $4'
+    params.push(excluirCitaId)
+  }
+  var r = await q(sql, params)
   return r.rows.length > 0
 }
 
-export async function existeConflictoAbogado(idAbogado, fechaHora, excluirCitaId = null) {
+export async function existeConflictoAbogado(idAbogado, fechaHora, excluirCitaId = null, cnn = null) {
+  var q = conClient(cnn)
   var sql = `SELECT id FROM Cita
     WHERE id_abogado = $1
       AND date_trunc('hour', fecha_hora_copia) = date_trunc('hour', $2::timestamp)
-      AND estado_cita != 'cancelada'`
+      AND estado_cita NOT IN ('cancelada', 'rechazada')`
   var params = [idAbogado, fechaHora]
   if (excluirCitaId != null) {
     sql += ' AND id != $3'
     params.push(excluirCitaId)
   }
-  var r = await query(sql, params)
+  var r = await q(sql, params)
   return r.rows.length > 0
 }
 
-export async function crear(cita) {
-  var r = await query(
+export async function crear(cita, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `INSERT INTO Cita (id_cliente, id_abogado, fecha_hora_copia, id_calendario, motivo, estado_cita, resumen_chatbot)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${SQL_COLS}`,
@@ -110,8 +127,9 @@ export async function crear(cita) {
   return new Cita(normalizarFilaCita(r.rows[0]))
 }
 
-export async function actualizarEstado(id, estado) {
-  var r = await query(
+export async function actualizarEstado(id, estado, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `UPDATE Cita SET estado_cita = $1 WHERE id = $2 RETURNING ${SQL_COLS}`,
     [estado, id]
   )
@@ -120,8 +138,9 @@ export async function actualizarEstado(id, estado) {
 }
 
 /** Sets estado_cita = 'cancelada' together with the cancellation audit fields. */
-export async function cancelarConMotivo(id, motivoCancelacion, canceladoPor) {
-  var r = await query(
+export async function cancelarConMotivo(id, motivoCancelacion, canceladoPor, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `UPDATE Cita
      SET estado_cita = 'cancelada', motivo_cancelacion = $2, cancelado_por = $3
      WHERE id = $1
@@ -137,8 +156,9 @@ export async function actualizarGoogleEventId(id, googleEventId) {
   await query('UPDATE Cita SET google_event_id = $1 WHERE id = $2', [googleEventId, id])
 }
 
-export async function actualizarFecha(id, fechaHoraCopia, idCalendario) {
-  var r = await query(
+export async function actualizarFecha(id, fechaHoraCopia, idCalendario, cnn = null) {
+  var q = conClient(cnn)
+  var r = await q(
     `UPDATE Cita SET fecha_hora_copia = $1, id_calendario = $2, estado_cita = 'reprogramada', recordatorio_enviado = FALSE
      WHERE id = $3 RETURNING ${SQL_COLS}`,
     [fechaHoraCopia, idCalendario, id]

@@ -2,7 +2,7 @@ import * as docRepo from './documento.repositorio.js'
 import { Documento as Doc } from '../../entidades/documento.js'
 import { ejecutarConsulta } from '../../config/database.js'
 
-var EXT_PERMITIDAS = ['pdf', 'doc', 'docx', 'jpg', 'png', 'txt']
+export var EXT_PERMITIDAS = ['pdf', 'doc', 'docx', 'jpg', 'png', 'txt']
 var MAX_SIZE = 10 * 1024 * 1024
 
 export var listarDocumentos = async (idCaso) => {
@@ -29,7 +29,7 @@ async function validarAbogadoDelCaso(idCaso, idUsuario) {
   }
 }
 
-export async function subirDocumento({ idCaso, nombreDocumento, descripcion, extension, rutaArchivo, tamaño, idUsuarioAbogado }) {
+export async function subirDocumento({ idCaso, nombreDocumento, descripcion, extension, rutaArchivo, tamaño, idUsuarioAbogado }, cnn = null) {
   if (!idCaso || !nombreDocumento || !extension) {
     throw Object.assign(new Error('Faltan datos del documento'), { status: 400 })
   }
@@ -55,17 +55,17 @@ export async function subirDocumento({ idCaso, nombreDocumento, descripcion, ext
     tamaño: tamaño || 0
   })
 
-  return docRepo.crear(DOCUMENTO_NUEVO)
+  return docRepo.crear(DOCUMENTO_NUEVO, cnn)
 }
 
-export var actualizarDocumento = async (id, datos) => {
-  var d = await docRepo.actualizar(id, datos)
+export var actualizarDocumento = async (id, datos, cnn = null) => {
+  var d = await docRepo.actualizar(id, datos, cnn)
   if (!d) throw Object.assign(new Error('Documento no encontrado'), { status: 404 })
   return d
 }
 
-export var eliminarDocumento = async (id) => {
-  var r = await docRepo.eliminar(id)
+export var eliminarDocumento = async (id, cnn = null) => {
+  var r = await docRepo.eliminar(id, cnn)
   if (!r) throw Object.assign(new Error('Documento no encontrado'), { status: 404 })
   return { mensaje: 'Documento eliminado' }
 }

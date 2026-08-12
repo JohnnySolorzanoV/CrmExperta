@@ -1,7 +1,7 @@
 import express from 'express'
 import { default as corsMod } from 'cors'
 import './config/env.js'
-import { probarConexion, iniciarConexionConReintentos, cerrarConexiones } from './config/database.js'
+import { iniciarConexionConReintentos, cerrarConexiones } from './config/database.js'
 import { manejoDeErrores } from './config/manejoDeErrores.js'
 import { requestLogger, log } from './config/logger.js'
 import { ejecutarConsulta } from './config/database.js'
@@ -15,6 +15,7 @@ import casoRutas from './modulos/casos/caso.rutas.js'
 import documentoRutas from './modulos/documentos/documento.rutas.js'
 import chatbotRutas from './modulos/chatbot/chatbot.rutas.js'
 import { iniciarSchedulerRecordatorios } from './modulos/citas/cita.recordatorios.js'
+import { iniciarScheduler as iniciarSchedulerNotificaciones } from './modulos/notificacion/notificacion.servicio.js'
 
 export const APP = express()
 var PUERTO = process.env.PORT || 3000
@@ -57,31 +58,68 @@ APP.get(armarRutaApi('/ready'), async (req, res) => {
 
 APP.use(manejoDeErrores)
 
+// Orden obligatorio de arranque:
+// validar configuración → crear pool → comprobar PostgreSQL → iniciar scheduler
+// → abrir puerto HTTP → registrar servidor iniciado.
+// Está prohibido abrir el puerto HTTP antes de completar satisfactoriamente SELECT 1.
+var servidorActivo = null
+var controladorApagado = null
+var apagadoRegistrado = false
+
 export async function iniciarServidor() {
+  registrarApagado()
+
   try {
-    await iniciarConexionConReintentos()
+    var resultado = await iniciarConexionConReintentos({ signal: controladorApagado.signal })
+
+    if (controladorApagado.signal.aborted || !resultado.conectado) {
+      log.info('ARRANQUE_CANCELADO', {})
+      await cerrarConexiones()
+      process.exit(0)
+    }
+
+    // PostgreSQL ya respondió (SELECT 1 en probarConexion).
     iniciarSchedulerRecordatorios()
-    var servidor = APP.listen(PUERTO, () => {
+    iniciarSchedulerNotificaciones()
+
+    servidorActivo = APP.listen(PUERTO, () => {
       log.info('SERVIDOR_INICIADO', { puerto: PUERTO })
     })
-    registrarApagado(servidor)
   } catch (e) {
-    log.error('SERVIDOR_INICIO_ERR', { err: e })
+    if (controladorApagado.signal.aborted) {
+      await cerrarConexiones()
+      process.exit(0)
+    }
+    log.error('SERVIDOR_INICIO_ERR', { err: e?.message || e?.code || 'Error desconocido' })
     process.exit(1)
   }
 }
 
-function registrarApagado(servidor) {
-  var detener = () => {
+function registrarApagado() {
+  if (apagadoRegistrado) return
+  apagadoRegistrado = true
+  controladorApagado = new AbortController()
+
+  var detener = async () => {
+    if (controladorApagado.signal.aborted) return
+    controladorApagado.abort()
     log.info('APAGADO_INICIADO', {})
-    servidor.close(async () => {
-      await cerrarConexiones()
-      process.exit(0)
-    })
+
+    if (servidorActivo) {
+      await new Promise((res) => servidorActivo.close(res))
+    }
+    await cerrarConexiones()
+    process.exit(0)
+  }
+
+  var desencadenar = () => {
+    detener()
     setTimeout(() => process.exit(0), 5000).unref()
   }
-  process.on('SIGTERM', detener)
-  process.on('SIGINT', detener)
+
+  // Un solo manejo de señales (SIGTERM y SIGINT) para todo el ciclo de vida.
+  process.on('SIGTERM', desencadenar)
+  process.on('SIGINT', desencadenar)
 }
 
 var enPruebas = process.env.NODE_ENV === 'test' || process.env.VITEST
