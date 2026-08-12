@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 import '../config/env.js'
 
 // Elimina y recrea la base de datos indicada en DATABASE_URL, dejándola vacía
-// (sin esquema ni datos) para que luego se pueda poblar con `npm run seed`.
+// (sin esquema ni datos) para que luego se pueda poblar con npm run seed.
 // ELIMINA TODOS LOS DATOS. Usar solo para resetear entornos locales/prueba.
 var __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -39,10 +39,25 @@ async function main() {
   })
   await admin.connect()
 
-  if (await baseExiste(admin, dbDestino)) {
-    await admin.query('DROP DATABASE IF EXISTS "' + dbDestino + '" WITH (FORCE)')
+  if (usaSsl) {
+    // DigitalOcean gestiona el clúster: el usuario conectado no tiene permisos
+    // para DROP DATABASE ni pg_terminate_backend. En su lugar se vacía la base
+    // borrando y recreando el esquema, cuyos objetos son del usuario de la URL.
+    console.log('DigitalOcean detectado: vaciando el esquema...')
+    await admin.query('DROP SCHEMA public CASCADE')
+    await admin.query('CREATE SCHEMA public')
+    await admin.query('GRANT ALL ON SCHEMA public TO public')
+  } else if (await baseExiste(admin, dbDestino)) {
+    // Entornos locales: termina las sesiones activas (p. ej. el backend en
+    // ejecución) para que DROP DATABASE no falle por "database is being
+    // accessed by other users" o versiones de Postgres sin WITH (FORCE).
+    await admin.query(
+      'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
+      [dbDestino]
+    )
+    await admin.query('DROP DATABASE IF EXISTS "' + dbDestino + '"')
+    await admin.query('CREATE DATABASE "' + dbDestino + '"')
   }
-  await admin.query('CREATE DATABASE "' + dbDestino + '"')
   await admin.end()
 
   console.log('Base "' + dbDestino + '" reiniciada (vacía). Ejecuta "npm run seed" para poblar el esquema.')
