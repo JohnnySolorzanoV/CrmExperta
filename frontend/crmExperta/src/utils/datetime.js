@@ -47,12 +47,14 @@ export function isPastDate(value, nowMs = Date.now()) {
 
 /**
  * Devuelve un Date "desplazado" cuyos getters UTC* equivalen a los componentes
- * locales de America/Guayaquil (offset fijo, sin horario de verano).
+ * locales de America/Guayaquil (UTC-5, sin horario de verano).
+ * Guayaquil = UTC - 5, así que se resta el offset para que getUTCHours()
+ * devuelva la hora de Ecuador y no UTC+5.
  */
 export function enGuayaquil(value) {
   const d = parseAsUtcDate(value)
   if (!d) return null
-  return new Date(d.getTime() + OFFSET_GYE_MS)
+  return new Date(d.getTime() - OFFSET_GYE_MS)
 }
 
 /**
@@ -83,7 +85,8 @@ export function isSameGyeDay(a, b) {
 export function startOfGyeDay(value) {
   const p = partesEnGuayaquil(value)
   if (!p) return null
-  return new Date(Date.UTC(p.year, p.month, p.date) - OFFSET_GYE_MS)
+  // 00:00 GYE = 05:00 UTC del mismo día civil.
+  return new Date(Date.UTC(p.year, p.month, p.date) + OFFSET_GYE_MS)
 }
 
 /** Formatea un instante en America/Guayaquil con el locale es-EC. */
