@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
 import { verificarMismoUsuario } from '../../config/autorizacion.js'
 import { listarSlots, listarDisponibilidadAbogado, crearSlot, eliminarSlot } from './calendario.casosDeUso.js'
+import { registrarAuditoria } from '../auditoria/auditoria.servicio.js'
+import { log } from '../../config/logger.js'
 
 var router = Router()
 
@@ -39,14 +41,29 @@ router.post('/', verificarToken, verificarRol('abogado'), async (req, res, next)
     }
     payload.idAbogado = req.usuario.id
     var s = await crearSlot(payload)
+    await registrarAuditoria({
+      req,
+      accion: 'CREAR',
+      recurso: 'Calendario',
+      recursoId: s.id,
+      detalle: 'alta de horario'
+    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message, contexto: 'alta de horario' }))
     res.status(201).json({ mensaje: 'Slot creado', slot: s })
   } catch (error) { next(error) }
 })
 
 router.delete('/:id', verificarToken, verificarRol('abogado'), async (req, res, next) => {
   try {
+    var id = Number(req.params.id)
     // El abogado solo puede eliminar sus propios horarios.
-    await eliminarSlot(Number(req.params.id), req.usuario.id)
+    await eliminarSlot(id, req.usuario.id)
+    await registrarAuditoria({
+      req,
+      accion: 'ELIMINAR',
+      recurso: 'Calendario',
+      recursoId: id,
+      detalle: 'eliminacion de horario'
+    }).catch(e => log.error('AUDITORIA_ERR', { err: e.message, contexto: 'eliminacion de horario' }))
     res.json({ mensaje: 'Slot eliminado' })
   } catch (error) { next(error) }
 })

@@ -1,4 +1,5 @@
 import * as casoRepo from './caso.repositorio.js'
+import * as citaRepo from '../citas/cita.repositorio.js'
 import { Caso } from '../../entidades/caso.js'
 import { ejecutarConsulta } from '../../config/database.js'
 
@@ -48,7 +49,21 @@ function normalizarTextoOpcional(valor) {
   return valor.trim()
 }
 
-export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, conclusiones, idCliente, idAbogado }, cnn = null) {
+async function validarCitaParaCaso(idCita, pkCliente, pkAbogado) {
+  if (!Number.isInteger(idCita) || idCita <= 0) {
+    throw Object.assign(new Error('Cita invalida'), { status: 400 })
+  }
+  var cita = await citaRepo.buscarPorId(idCita)
+  if (!cita) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
+  if (cita.idCliente !== pkCliente || cita.idAbogado !== pkAbogado) {
+    throw Object.assign(new Error('La cita no corresponde a este cliente y abogado'), { status: 403 })
+  }
+  if (cita.estadoCita !== 'confirmada') {
+    throw Object.assign(new Error('Solo se puede abrir un caso desde una cita confirmada'), { status: 409 })
+  }
+}
+
+export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, conclusiones, idCliente, idAbogado, idCita }, cnn = null) {
   if (!tipoCaso || !nombreCaso || !idCliente || !idAbogado) {
     throw Object.assign(new Error('Faltan datos del caso'), { status: 400 })
   }
@@ -58,6 +73,9 @@ export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, concl
 
   var pkAbogado = await resolverAbogadoPk(idAbogado)
   if (!pkAbogado) throw Object.assign(new Error('Abogado no encontrado'), { status: 404 })
+
+  var citaId = idCita == null || idCita === '' ? null : Number(idCita)
+  if (citaId != null) await validarCitaParaCaso(citaId, pkCliente, pkAbogado)
 
   var CASO_NUEVO = new Caso({
     estadoCaso: estadoCaso || 'abierto',
@@ -69,7 +87,9 @@ export async function crearCaso({ estadoCaso, tipoCaso, nombreCaso, notas, concl
     idAbogado: pkAbogado
   })
 
-  return casoRepo.crear(CASO_NUEVO, cnn)
+  var creado = await casoRepo.crear(CASO_NUEVO, cnn)
+  if (citaId != null) await citaRepo.actualizarEstado(citaId, 'completada', cnn)
+  return creado
 }
 
 // Transiciones permitidas entre estados de un caso (RF04).

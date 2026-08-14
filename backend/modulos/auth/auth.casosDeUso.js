@@ -112,5 +112,5 @@ export async function restablecerContrasena({ token, nuevaContrasena }, cnn = nu
     throw Object.assign(new Error('El token ya no es válido: expiró o fue utilizado'), { status: 400 })
   }
 
-  return { mensaje: 'Contraseña actualizada correctamente' }
+  return { mensaje: 'Contraseña actualizada correctamente', id: userr.id }
 }

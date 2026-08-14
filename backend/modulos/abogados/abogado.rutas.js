@@ -48,6 +48,7 @@ router.put('/:id', verificarToken, verificarRol('administrador'), async (req, re
       req,
       accion: 'MODIFICAR',
       recurso: 'Abogado',
+      recursoId: Number(req.params.id),
       detalle: 'actualizacion de abogado',
       tarea: (cnn) => actualizarAbogado(Number(req.params.id), req.body, cnn),
     })

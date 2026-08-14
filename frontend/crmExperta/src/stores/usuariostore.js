@@ -63,7 +63,18 @@ export const useUsuarioStore = defineStore('usuario', () => {
         }
     }
 
-    function cerrarSesion() {
+    async function cerrarSesion() {
+        const tokenActual = token.value
+        if (tokenActual) {
+            try {
+                await apiFetch('/auth/logout', {
+                    method: 'POST',
+                    headers: { Authorization: 'Bearer ' + tokenActual }
+                })
+            } catch {
+                // El cierre local no depende de que el rastro remoto se confirme.
+            }
+        }
         usuario.value = null;
         token.value = null;
         error.value = null;

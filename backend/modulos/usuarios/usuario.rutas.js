@@ -16,12 +16,15 @@ router.put('/:id/estado', verificarToken, verificarRol('administrador'), async (
   try {
     var activo = Boolean(req.body?.activo)
     var accion = activo ? 'ACTIVAR' : 'DESACTIVAR'
+    var previo = await obtenerUsuario(Number(req.params.id))
+    var desde = previo.activo ? 'activo' : 'inactivo'
+    var hacia = activo ? 'activo' : 'inactivo'
     var u = await ejecutarConAuditoria({
       req,
       accion,
       recurso: 'Usuario',
       recursoId: Number(req.params.id),
-      detalle: (activo ? 'activar' : 'desactivar') + ' cuenta de usuario',
+      detalle: 'cambio de estado: ' + desde + ' -> ' + hacia,
       tarea: (cnn) => cambiarEstadoUsuario(Number(req.params.id), activo, cnn),
     })
     res.json({ mensaje: accion === 'DESACTIVAR' ? 'Usuario desactivado' : 'Usuario activado', usuario: u })
@@ -49,6 +52,7 @@ router.put('/:id', verificarToken, verificarMismoUsuarioOTarget(req => req.param
       req,
       accion: 'MODIFICAR',
       recurso: 'Usuario',
+      recursoId: Number(req.params.id),
       detalle: 'actualizacion de datos basicos',
       tarea: (cnn) => actualizarUsuario(Number(req.params.id), { nombre, correo }, cnn),
     })

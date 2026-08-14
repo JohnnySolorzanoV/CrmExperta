@@ -82,7 +82,7 @@ export async function enviarEmail({ para, asunto, titulo, lineas }) {
       })
       log.info('EMAIL_SMTP_ENVIADO', { messageId: info.messageId, intento })
       try {
-        await registrarNotificacion({ para, asunto: info.messageId, resultado: 'exito' })
+        await registrarNotificacion({ para, asunto, resultado: 'exito', detalle: info.messageId })
       } catch (e) {
         log.error('AUDITORIA_ERR', { err: e?.message, contexto: 'notificacion enviada' })
       }

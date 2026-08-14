@@ -1,7 +1,7 @@
 import { ejecutarConsulta as sqlExec } from '../../config/database.js'
 import { Usuario } from '../../entidades/usuario.js'
 
-var CAMPOS_USUARIO = `id, identificacion, nombre, correo, fecha_registro as "fechaRegistro"`
+var CAMPOS_USUARIO = `id, identificacion, nombre, correo, activo, fecha_registro as "fechaRegistro"`
 
 function conClient(cnn) {
   return cnn ? (txt, prms) => cnn.query(txt, prms) : sqlExec

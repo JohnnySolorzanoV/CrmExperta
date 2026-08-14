@@ -13,7 +13,7 @@ router.post('/registro', async (req, res, next) => {
   try {
     var { identificacion, nombre, correo, contrasena, direccion, telefono } = req.body
     if (!identificacion || !nombre || !correo || !contrasena) {
-      return res.status(400).json({ error: 'Faltan campos requeridos' })
+      throw Object.assign(new Error('Faltan campos requeridos'), { status: 400 })
     }
 
     var user_created = await ejecutarConAuditoria({
@@ -36,7 +36,7 @@ router.post('/registro', async (req, res, next) => {
 router.get('/:idUsuario', verificarToken, verificarRol('cliente'), async (req, res, next) => {
   try {
     if (Number(req.usuario.id) !== Number(req.params.idUsuario)) {
-      return res.status(403).json({ error: 'No tienes permiso para consultar este perfil' })
+      throw Object.assign(new Error('No tienes permiso para consultar este perfil'), { status: 403 })
     }
     var cliente = await obtenerCliente(Number(req.params.idUsuario))
     res.json({ cliente })
@@ -46,12 +46,13 @@ router.get('/:idUsuario', verificarToken, verificarRol('cliente'), async (req, r
 router.put('/:idUsuario', verificarToken, verificarRol('cliente'), async (req, res, next) => {
   try {
     if (Number(req.usuario.id) !== Number(req.params.idUsuario)) {
-      return res.status(403).json({ error: 'No tienes permiso para modificar este perfil' })
+      throw Object.assign(new Error('No tienes permiso para modificar este perfil'), { status: 403 })
     }
     var cliente = await ejecutarConAuditoria({
       req,
       accion: 'MODIFICAR',
       recurso: 'Cliente',
+      recursoId: Number(req.params.idUsuario),
       detalle: 'actualizacion de datos del cliente',
       tarea: (cnn) => actualizarCliente(Number(req.params.idUsuario), req.body, cnn),
     })

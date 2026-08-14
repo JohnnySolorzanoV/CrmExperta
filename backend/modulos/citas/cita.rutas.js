@@ -67,7 +67,8 @@ router.put('/:id/cancelar', verificarToken, verificarDuenoCita, async (req, res,
       req,
       accion: 'MODIFICAR',
       recurso: 'Cita',
-      detalle: 'cancelacion de cita',
+      recursoId: Number(req.params.id),
+      detalle: 'cancelacion de cita por ' + canceladoPor + ': -> cancelada',
       tarea: (cnn) => cancelarCita(Number(req.params.id), { motivoCancelacion, canceladoPor, cnn }),
     })
     res.json({ mensaje: 'Cita cancelada', cita: c })
@@ -76,11 +77,13 @@ router.put('/:id/cancelar', verificarToken, verificarDuenoCita, async (req, res,
 
 router.put('/:id/aceptar', verificarToken, verificarRol('abogado'), verificarAbogadoDeCita, async (req, res, next) => {
   try {
+    var previa = await obtenerCita(Number(req.params.id))
     var c = await ejecutarConAuditoria({
       req,
       accion: 'MODIFICAR',
       recurso: 'Cita',
-      detalle: 'aceptacion de cita',
+      recursoId: Number(req.params.id),
+      detalle: 'aceptacion de cita: ' + previa.estadoCita + ' -> confirmada',
       tarea: (cnn) => aceptarCita(Number(req.params.id), cnn),
     })
     res.json({ mensaje: 'Cita aceptada', cita: c })
@@ -89,11 +92,13 @@ router.put('/:id/aceptar', verificarToken, verificarRol('abogado'), verificarAbo
 
 router.put('/:id/rechazar', verificarToken, verificarRol('abogado'), verificarAbogadoDeCita, async (req, res, next) => {
   try {
+    var previa = await obtenerCita(Number(req.params.id))
     var c = await ejecutarConAuditoria({
       req,
       accion: 'MODIFICAR',
       recurso: 'Cita',
-      detalle: 'rechazo de cita',
+      recursoId: Number(req.params.id),
+      detalle: 'rechazo de cita: ' + previa.estadoCita + ' -> rechazada',
       tarea: (cnn) => rechazarCita(Number(req.params.id), cnn),
     })
     res.json({ mensaje: 'Cita rechazada', cita: c })
@@ -106,7 +111,8 @@ router.put('/:id/completar', verificarToken, verificarRol('abogado'), verificarA
       req,
       accion: 'MODIFICAR',
       recurso: 'Cita',
-      detalle: 'cita marcada como cumplida',
+      recursoId: Number(req.params.id),
+      detalle: 'cita marcada como cumplida: confirmada -> completada',
       tarea: (cnn) => completarCita(Number(req.params.id), cnn),
     })
     res.json({ mensaje: 'Cita marcada como cumplida', cita: c })

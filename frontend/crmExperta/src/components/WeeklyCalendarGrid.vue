@@ -139,16 +139,16 @@ function statusLabel(status) {
 
 /**
  * Acciones permitidas según el estado de la cita, alineadas con el backend:
- *  pendiente   -> Aceptar, Rechazar
- *  confirmada  -> Completar, Cancelar, Crear caso
- *  reprogramada-> Cancelar
+ *  pendiente    -> Aceptar, Rechazar
+ *  confirmada   -> Completar (consulta hecha), Cancelar, Crear caso (abre expediente y cierra la cita)
+ *  reprogramada -> Aceptar, Rechazar (el nuevo horario debe confirmarse)
  *  rechazada, cancelada, completada -> ninguna
  */
 function accionesCita(status) {
   switch (status) {
     case 'pendiente': return ['aceptar', 'rechazar']
     case 'confirmada': return ['completar', 'cancelar', 'crear-caso']
-    case 'reprogramada': return ['cancelar']
+    case 'reprogramada': return ['aceptar', 'rechazar']
     default: return []
   }
 }

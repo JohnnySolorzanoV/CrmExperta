@@ -9,9 +9,10 @@ const usuarioStore = useUsuarioStore()
 const autenticado = computed(() => Boolean(usuarioStore.token && usuarioStore.usuario))
 const esCliente = computed(() => Boolean(usuarioStore.usuario?.roles?.includes('cliente')))
 const esAbogado = computed(() => Boolean(usuarioStore.usuario?.roles?.includes('abogado')))
+const esAdmin = computed(() => Boolean(usuarioStore.usuario?.roles?.includes('administrador')))
 
-function cerrarSesion() {
-  usuarioStore.cerrarSesion()
+async function cerrarSesion() {
+  await usuarioStore.cerrarSesion()
   router.push('/loginPerfil')
 }
 </script>
@@ -43,6 +44,8 @@ function cerrarSesion() {
               <RouterLink class="nav-text-link" to="/crearPerfil">Agenda tu cita</RouterLink>
             </template>
             <template v-else>
+              <RouterLink v-if="esAdmin" class="nav-text-link" to="/admin">Abogados</RouterLink>
+              <RouterLink v-if="esAdmin" class="nav-text-link" to="/admin/auditoria">Auditoria</RouterLink>
               <RouterLink v-if="esAbogado" class="nav-text-link" to="/inicioAbogado">Citas y casos</RouterLink>
               <RouterLink v-if="esCliente" class="nav-text-link" to="/chatbot">Agendar chatbot</RouterLink>
               <RouterLink v-if="esCliente" class="nav-text-link" to="/mis-reservas">Mis reservas</RouterLink>

@@ -5,7 +5,7 @@ import multer from 'multer'
 import { fileURLToPath } from 'node:url'
 import { verificarToken, verificarRol } from '../../config/autenticacion.js'
 import { verificarDuenoCaso, verificarDuenoDocumento } from '../../config/autorizacion.js'
-import { ejecutarConAuditoria } from '../auditoria/auditoria.servicio.js'
+import { ejecutarConAuditoria, registrarAuditoria } from '../auditoria/auditoria.servicio.js'
 import {
   esEspacios, claveDesdeRuta, guardarArchivo, obtenerArchivo, eliminarArchivo
 } from '../../config/almacenamiento.js'
@@ -118,6 +118,7 @@ router.get('/:id/descargar', verificarToken, (req, res, next) => verificarDuenoD
       throw Object.assign(new Error('El documento no tiene archivo asociado'), { status: 404 })
     }
     var nombreDescarga = d.nombreDocumento || path.basename(d.rutaArchivo)
+    var detalleDescarga = 'descarga de documento: ' + nombreDescarga
 
     // Spaces: el objeto no vive en disco; se proxy el stream desde la nube,
     // conservando la autorización (verificarDuenoDocumento) y el formato actual.
@@ -126,6 +127,13 @@ router.get('/:id/descargar', verificarToken, (req, res, next) => verificarDuenoD
       if (!objeto) {
         throw Object.assign(new Error('Archivo no encontrado en el servidor'), { status: 404 })
       }
+      await registrarAuditoria({
+        req,
+        accion: 'DESCARGAR',
+        recurso: 'Documento',
+        recursoId: d.id,
+        detalle: detalleDescarga
+      })
       var ext = path.extname(d.rutaArchivo || '').slice(1).toLowerCase()
       res.setHeader('Content-Type', (MIME_POR_EXTENSION[ext] || [])[0] || 'application/octet-stream')
       res.setHeader('Content-Disposition', `attachment; filename="${nombreDescarga}"`)
@@ -140,6 +148,13 @@ router.get('/:id/descargar', verificarToken, (req, res, next) => verificarDuenoD
     if (!fs.existsSync(rutaAbsoluta)) {
       throw Object.assign(new Error('Archivo no encontrado en el servidor'), { status: 404 })
     }
+    await registrarAuditoria({
+      req,
+      accion: 'DESCARGAR',
+      recurso: 'Documento',
+      recursoId: d.id,
+      detalle: detalleDescarga
+    })
     res.download(rutaAbsoluta, nombreDescarga)
   } catch (error) { next(error) }
 })
@@ -174,7 +189,7 @@ router.post('/', verificarToken, verificarRol('abogado'), subirArchivoMiddleware
       req,
       accion: 'CREAR',
       recurso: 'Documento',
-      detalle: 'subida de documento',
+      detalle: 'subida de documento: ' + (payload.nombreDocumento || 'sin nombre'),
       tarea: (cnn) => subirDocumento(payload, cnn),
     })
     res.status(201).json({ mensaje: 'Documento subido', documento: d })
@@ -198,6 +213,7 @@ router.put('/:id', verificarToken, verificarDuenoDocumento, verificarRol('abogad
       req,
       accion: 'MODIFICAR',
       recurso: 'Documento',
+      recursoId: Number(req.params.id),
       detalle: 'actualizacion de descripcion del documento',
       tarea: (cnn) => actualizarDocumento(Number(req.params.id), req.body, cnn),
     })
@@ -214,7 +230,7 @@ router.delete('/:id', verificarToken, verificarDuenoDocumento, verificarRol('abo
       accion: 'ELIMINAR',
       recurso: 'Documento',
       recursoId: id,
-      detalle: 'eliminacion de documento y de su archivo',
+      detalle: 'eliminacion de documento y de su archivo: ' + (doc.nombreDocumento || path.basename(doc.rutaArchivo || '')),
       tarea: (cnn) => eliminarDocumento(id, cnn),
     })
     // El archivo se borra SOLO después de confirmar el DELETE en BD: si la

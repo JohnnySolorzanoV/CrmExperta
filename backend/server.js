@@ -14,6 +14,7 @@ import citaRutas from './modulos/citas/cita.rutas.js'
 import casoRutas from './modulos/casos/caso.rutas.js'
 import documentoRutas from './modulos/documentos/documento.rutas.js'
 import chatbotRutas from './modulos/chatbot/chatbot.rutas.js'
+import auditoriaRutas from './modulos/auditoria/auditoria.rutas.js'
 import { iniciarSchedulerRecordatorios } from './modulos/citas/cita.recordatorios.js'
 import { iniciarScheduler as iniciarSchedulerNotificaciones } from './modulos/notificacion/notificacion.servicio.js'
 
@@ -35,6 +36,7 @@ var MODULOS_ACTIVOS = [
   { ruta: '/casos', handler: casoRutas },
   { ruta: '/documentos', handler: documentoRutas },
   { ruta: '/chatbot', handler: chatbotRutas },
+  { ruta: '/auditoria', handler: auditoriaRutas },
 ]
 
 for (var mod of MODULOS_ACTIVOS) {

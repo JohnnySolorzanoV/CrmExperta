@@ -16,6 +16,7 @@ import misReservas from './components/misReservas.vue'
 import sobreNosotros from './components/sobreNosotros.vue'
 import casoDetalle from './components/casoDetalle.vue'
 import casoDetalleCliente from './components/casoDetalleCliente.vue'
+import auditoria from './components/auditoria.vue'
 const rutas = [
     {
         path: '/',
@@ -60,6 +61,11 @@ const rutas = [
     {
         path: '/admin',
         component: admin,
+        meta: { rol: 'administrador' }
+    },
+    {
+        path: '/admin/auditoria',
+        component: auditoria,
         meta: { rol: 'administrador' }
     },
     // Rutas abogado

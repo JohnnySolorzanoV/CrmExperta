@@ -359,8 +359,8 @@ export var completarCita = async (id, cnn = null) => {
 export var aceptarCita = async (id, cnn = null) => {
   var previa = await ctaRepo.buscarPorId(id)
   if (!previa) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
-  if (previa.estadoCita !== 'pendiente') {
-    throw Object.assign(new Error('Solo se puede aceptar una cita pendiente'), { status: 409 })
+  if (previa.estadoCita !== 'pendiente' && previa.estadoCita !== 'reprogramada') {
+    throw Object.assign(new Error('Solo se puede aceptar una cita pendiente o reprogramada'), { status: 409 })
   }
   var c = await ctaRepo.actualizarEstado(id, 'confirmada', cnn)
 
@@ -372,8 +372,8 @@ export var aceptarCita = async (id, cnn = null) => {
 export var rechazarCita = async (id, cnn = null) => {
   var previa = await ctaRepo.buscarPorId(id)
   if (!previa) throw Object.assign(new Error('Cita no encontrada'), { status: 404 })
-  if (previa.estadoCita !== 'pendiente') {
-    throw Object.assign(new Error('Solo se puede rechazar una cita pendiente'), { status: 409 })
+  if (previa.estadoCita !== 'pendiente' && previa.estadoCita !== 'reprogramada') {
+    throw Object.assign(new Error('Solo se puede rechazar una cita pendiente o reprogramada'), { status: 409 })
   }
   return ctaRepo.actualizarEstado(id, 'rechazada', cnn)
 }

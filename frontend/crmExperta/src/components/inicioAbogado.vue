@@ -61,12 +61,13 @@ const ESTADO_CITA_VARIANT = {
 }
 
 // Acciones permitidas según el estado de la cita, alineadas con el backend.
-// "Rechazar" (pendiente) cubre el declarar ante una solicitud; "Cancelar" se
-// usa solo cuando la cita ya está agendada (confirmada/reprogramada).
+// Una cita reprogramada vuelve a requerir confirmación del abogado (nuevo horario).
+// Confirmada: Completar = la consulta ocurrió sin abrir expediente;
+// Crear caso = abre expediente y cierra la cita; Cancelar = no se realizará.
 const ACCIONES_CITA = {
   pendiente: ['aceptar', 'rechazar'],
   confirmada: ['completar', 'cancelar', 'crear-caso'],
-  reprogramada: ['cancelar'],
+  reprogramada: ['aceptar', 'rechazar'],
 }
 
 const ACCION_CITA_BTN = {
@@ -104,7 +105,7 @@ const proximaCita = computed(() => {
 })
 
 const citasPendientesConfirmacion = computed(
-  () => citas.value.filter((c) => c.estadoCita === 'pendiente').length
+  () => citas.value.filter((c) => c.estadoCita === 'pendiente' || c.estadoCita === 'reprogramada').length
 )
 
 const casosActivos = computed(
@@ -337,6 +338,7 @@ async function crearCasoDesdeCita() {
         estadoCaso: formCaso.value.estadoCaso,
         idCliente: citaSeleccionada.value.idCliente,
         idAbogado: abogadoId.value,
+        idCita: citaSeleccionada.value.id,
       }),
     })
     const data = await response.json()
@@ -470,7 +472,7 @@ async function crearCasoDesdeCita() {
             v-for="c in citasOrdenadas"
             :key="c.id"
             class="ia-cita-row"
-            :class="{ 'ia-cita-row--priority': c.estadoCita === 'pendiente' }"
+            :class="{ 'ia-cita-row--priority': c.estadoCita === 'pendiente' || c.estadoCita === 'reprogramada' }"
           >
             <div class="ia-cita-date">
               <span class="ia-cita-day">{{ formatearDia(c.fechaHoraCopia) }}</span>
@@ -479,7 +481,7 @@ async function crearCasoDesdeCita() {
             <div class="ia-cita-details">
               <p class="ia-cita-cliente">
                 {{ c.clienteNombre || 'Cliente no especificado' }}
-                <span v-if="c.estadoCita === 'pendiente'" class="ia-next-label">Atencion</span>
+                <span v-if="c.estadoCita === 'pendiente' || c.estadoCita === 'reprogramada'" class="ia-next-label">Atencion</span>
               </p>
               <p class="ia-cita-motivo">{{ c.motivo || 'Sin motivo registrado' }}</p>
               <p class="ia-cita-resumen">{{ c.resumenChatbot || 'Sin resumen de chatbot.' }}</p>

@@ -138,4 +138,20 @@ describe('Integracion reagendamiento de citas', () => {
     expect(r.status).toBe(200)
     expect(r.body.cita.estadoCita).toBe('reprogramada')
   })
+
+  it('INT-REP-06 el abogado puede aceptar una cita reprogramada y esta pasa a confirmada', async () => {
+    var franjaNueva = proximaFranjaLaborable({ hora: 10, minuto: 55 })
+    var slot = await insertarSlot(baseIds.abogadoPkId, franjaNueva)
+    var cita = await crearCita({ franja: proximaFranjaLaborable({ hora: 11, minuto: 55 }) })
+
+    var reagendada = await reprogramar(cita.id, { fechaHoraCopia: franjaNueva, idCalendario: slot.rows[0].id }, tokenCliente)
+    expect(reagendada.status).toBe(200)
+    expect(reagendada.body.cita.estadoCita).toBe('reprogramada')
+
+    var acepta = await request(APP)
+      .put('/api/citas/' + cita.id + '/aceptar')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+    expect(acepta.status).toBe(200)
+    expect(acepta.body.cita.estadoCita).toBe('confirmada')
+  })
 })

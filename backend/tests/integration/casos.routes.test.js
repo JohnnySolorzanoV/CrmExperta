@@ -2,7 +2,7 @@ import request from 'supertest'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { APP } from '../../server.js'
 import { crearTokenTest } from '../helpers/authTestUtils.js'
-import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase } from '../helpers/dbTestUtils.js'
+import { verificarBasePruebasDisponible, queryTest, resetearBasePruebas, sembrarUsuariosBase, proximaFranjaLaborable } from '../helpers/dbTestUtils.js'
 
 describe('Integracion /api/casos', () => {
   var baseIds
@@ -112,5 +112,47 @@ describe('Integracion /api/casos', () => {
 
     expect(r.status).toBe(409)
     expect(r.body.error).toContain('ya se encuentra en ese estado')
+  })
+
+  it('INT-CASOS-09 crear un caso desde una cita confirmada la deja completada', async () => {
+    var franja = proximaFranjaLaborable({ hora: 10, minuto: 40 })
+    var tokenCliente = crearTokenTest({
+      id: baseIds.clienteUsuarioId,
+      correo: 'cliente@test.com',
+      roles: ['cliente'],
+    })
+
+    var agendada = await request(APP)
+      .post('/api/citas')
+      .set('Authorization', 'Bearer ' + tokenCliente)
+      .send({
+        idCliente: baseIds.clienteUsuarioId,
+        idAbogado: baseIds.abogadoUsuarioId,
+        fechaHoraCopia: franja,
+        motivo: 'Consulta para expediente',
+      })
+    expect(agendada.status).toBe(201)
+    var citaId = agendada.body.cita.id
+
+    var acepta = await request(APP)
+      .put('/api/citas/' + citaId + '/aceptar')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+    expect(acepta.status).toBe(200)
+
+    var creado = await request(APP)
+      .post('/api/casos')
+      .set('Authorization', 'Bearer ' + tokenAbogado)
+      .send({
+        nombreCaso: 'Expediente desde cita',
+        tipoCaso: 'civil',
+        estadoCaso: 'abierto',
+        idCliente: baseIds.clienteUsuarioId,
+        idAbogado: baseIds.abogadoUsuarioId,
+        idCita: citaId,
+      })
+    expect(creado.status).toBe(201)
+
+    var cita = await queryTest('SELECT estado_cita FROM Cita WHERE id = $1', [citaId])
+    expect(cita.rows[0].estado_cita).toBe('completada')
   })
 })

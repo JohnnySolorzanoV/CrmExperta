@@ -6,11 +6,17 @@ var mockRepo = {
   actualizarNotasConclusiones: vi.fn(),
 }
 
+var mockCitaRepo = {
+  buscarPorId: vi.fn(),
+  actualizarEstado: vi.fn(),
+}
+
 var mockDb = {
   ejecutarConsulta: vi.fn(),
 }
 
 vi.mock('../../modulos/casos/caso.repositorio.js', () => mockRepo)
+vi.mock('../../modulos/citas/cita.repositorio.js', () => mockCitaRepo)
 vi.mock('../../config/database.js', () => mockDb)
 
 describe('caso.casosDeUso', () => {
@@ -84,5 +90,59 @@ describe('caso.casosDeUso', () => {
       message: 'Caso no encontrado',
       status: 404,
     })
+  })
+
+  it('UNIT-CASOS-07 crearCaso con idCita valida la cita confirmada y la marca completada', async () => {
+    mockDb.ejecutarConsulta
+      .mockResolvedValueOnce({ rows: [{ id: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 20 }] })
+    mockCitaRepo.buscarPorId.mockResolvedValue({
+      id: 7,
+      idCliente: 12,
+      idAbogado: 20,
+      estadoCita: 'confirmada',
+    })
+    mockRepo.crear.mockResolvedValue({ id: 3, nombreCaso: 'Cobro' })
+    mockCitaRepo.actualizarEstado.mockResolvedValue({ id: 7, estadoCita: 'completada' })
+
+    var { crearCaso } = await import('../../modulos/casos/caso.casosDeUso.js')
+    var r = await crearCaso({
+      tipoCaso: 'civil',
+      nombreCaso: 'Cobro',
+      idCliente: 12,
+      idAbogado: 20,
+      idCita: 7,
+    })
+
+    expect(r.id).toBe(3)
+    expect(mockCitaRepo.buscarPorId).toHaveBeenCalledWith(7)
+    expect(mockCitaRepo.actualizarEstado).toHaveBeenCalledWith(7, 'completada', null)
+  })
+
+  it('UNIT-CASOS-08 crearCaso rechaza abrir un caso desde una cita que no esta confirmada', async () => {
+    mockDb.ejecutarConsulta
+      .mockResolvedValueOnce({ rows: [{ id: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 20 }] })
+    mockCitaRepo.buscarPorId.mockResolvedValue({
+      id: 7,
+      idCliente: 12,
+      idAbogado: 20,
+      estadoCita: 'pendiente',
+    })
+
+    var { crearCaso } = await import('../../modulos/casos/caso.casosDeUso.js')
+    await expect(
+      crearCaso({
+        tipoCaso: 'civil',
+        nombreCaso: 'Cobro',
+        idCliente: 12,
+        idAbogado: 20,
+        idCita: 7,
+      })
+    ).rejects.toMatchObject({
+      message: 'Solo se puede abrir un caso desde una cita confirmada',
+      status: 409,
+    })
+    expect(mockRepo.crear).not.toHaveBeenCalled()
   })
 })

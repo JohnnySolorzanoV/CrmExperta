@@ -4,7 +4,7 @@ import { ejecutarConsulta } from '../../config/database.js'
 import { preguntarAI } from '../../config/poe.js'
 import { log } from '../../config/logger.js'
 
-var FALLO_EXTERNO = 'En este momento el asistente no puede responder. Por favor reintenta en unos minutos o agenda una cita con un abogado.'
+export var FALLO_EXTERNO = 'En este momento el asistente no puede responder. Por favor reintenta en unos minutos o agenda una cita con un abogado.'
 
 var SISTEMA_BASE = `
 Eres un asistente legal especializado que trabaja para un bufete de abogados.

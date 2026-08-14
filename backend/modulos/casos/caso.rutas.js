@@ -52,6 +52,7 @@ router.put('/:id/estado', verificarToken, verificarDuenoCaso, verificarRol('abog
       req,
       accion: 'MODIFICAR',
       recurso: 'Caso',
+      recursoId: Number(req.params.id),
       detalle: `cambio de estado: ${previo.estadoCaso} -> ${estado}`,
       tarea: (cnn) => actualizarEstadoCaso(Number(req.params.id), estado, cnn),
     })
@@ -67,6 +68,7 @@ router.put('/:id/notas-conclusiones', verificarToken, verificarDuenoCaso, verifi
       req,
       accion: 'MODIFICAR',
       recurso: 'Caso',
+      recursoId: Number(req.params.id),
       detalle: 'actualizacion de notas y conclusiones del caso',
       tarea: (cnn) => actualizarNotasConclusionesCaso(Number(req.params.id), { notas, conclusiones }, cnn),
     })
