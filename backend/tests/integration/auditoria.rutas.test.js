@@ -2,6 +2,7 @@ import request from 'supertest'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { APP } from '../../server.js'
 import { crearTokenTest } from '../helpers/authTestUtils.js'
+import { formatearEnGuayaquil } from '../../config/datetime.js'
 import { verificarBasePruebasDisponible, resetearBasePruebas, sembrarUsuariosBase, queryTest } from '../helpers/dbTestUtils.js'
 
 describe('Integracion GET /api/auditoria', () => {
@@ -73,5 +74,26 @@ describe('Integracion GET /api/auditoria', () => {
       .get('/api/auditoria/export.csv')
       .set('Authorization', 'Bearer ' + tokenCliente)
     expect(denegado.status).toBe(403)
+  })
+
+  it('AUD-API-04 el CSV muestra fecha en hora de Guayaquil, no ISO UTC', async () => {
+    var instanteUtc = '2026-08-15 05:30:00'
+    await queryTest(
+      `INSERT INTO auditoria_logs (usuario_id, usuario_nombre, accion, recurso, resultado, fecha)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [ids.adminUsuarioId, 'Admin Test', 'FECHA_GYE_TEST', 'Auditoria', 'exito', instanteUtc]
+    )
+
+    var csv = await request(APP)
+      .get('/api/auditoria/export.csv')
+      .query({ desde: '2026-08-15T00:00:00.000Z', hasta: '2026-08-15T23:59:59.000Z', accion: 'FECHA_GYE_TEST' })
+      .set('Authorization', 'Bearer ' + tokenAdmin)
+    expect(csv.status).toBe(200)
+
+    var esperado = formatearEnGuayaquil(instanteUtc, { dateStyle: 'short', timeStyle: 'medium' })
+    expect(esperado).toBeTruthy()
+    expect(csv.text).toContain(esperado)
+    expect(csv.text).not.toMatch(/2026-08-15T05:30:00/)
+    expect(csv.text).not.toContain('2026-08-15 05:30:00')
   })
 })

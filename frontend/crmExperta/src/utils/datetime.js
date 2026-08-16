@@ -24,6 +24,10 @@ function parseAsUtcDate(value) {
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/.test(raw)) {
     raw += 'Z'
   }
+  // PostgreSQL timestamp text (without timezone): "YYYY-MM-DD HH:mm:ss(.sss)"
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?$/.test(raw)) {
+    raw = raw.replace(' ', 'T') + 'Z'
+  }
 
   const d = new Date(raw)
   if (Number.isNaN(d.getTime())) return null

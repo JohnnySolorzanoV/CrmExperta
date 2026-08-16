@@ -1,4 +1,5 @@
 import { ejecutarConsulta, ejecutarEnTransaccion } from '../../config/database.js'
+import { formatearEnGuayaquil } from '../../config/datetime.js'
 import { log } from '../../config/logger.js'
 
 // Servicio de auditoría persistente. Cada evento de negocio deja una fila en la
@@ -258,7 +259,7 @@ export async function exportarCsvAuditoria(filtros = {}) {
   for (var fila of registros) {
     lineas.push([
       csvEscape(fila.id),
-      csvEscape(fila.fecha),
+      csvEscape(formatearEnGuayaquil(fila.fecha, { dateStyle: 'short', timeStyle: 'medium' }) || fila.fecha),
       csvEscape(fila.usuario_id),
       csvEscape(fila.usuario_nombre),
       csvEscape(fila.accion),
