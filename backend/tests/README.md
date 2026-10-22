@@ -16,7 +16,7 @@ Este backend incluye pruebas unitarias y de integracion para rutas y casos de us
 > de ejecutar cualquier `DROP DATABASE`.
 
 ## Comandos
-
+    
 - `npm test`: ejecuta toda la suite (unit + integracion).
 - `npm run test:unit`: solo pruebas unitarias (`tests/unit`).
 - `npm run test:integration`: crea la base de pruebas y ejecuta `tests/integration`.
@@ -40,11 +40,20 @@ ejecuta el ciclo real completo:
 
 `respaldar.sh` y `restaurar.sh` usan `pg_dump`/`psql` del host si existen; si no,
 los ejecutan dentro del contenedor Postgres indicado por `PG_CONTAINER`
-(por defecto en las pruebas: `crm-pg-test`). La URL se reescribe a `localhost:5432`
-cuando se ejecuta dentro del contenedor. Por ejemplo:
+(por defecto en las pruebas: `crm-pg-test`). Para una base externa, `respaldar.sh`
+usa un cliente efimero con Docker y conserva el host, puerto y opciones de
+`DATABASE_URL`; la imagen se puede cambiar con `PG_IMAGE` (por defecto:
+`postgres:16-alpine`). La URL solo se reescribe a `localhost:5432` cuando se
+ejecuta dentro de `PG_CONTAINER`. Por ejemplo:
 
 ```sh
 DATABASE_URL=postgres://... PG_CONTAINER=crm-pg-test npm run db:backup
+```
+
+Para una base externa:
+
+```sh
+DATABASE_URL=postgres://... npm run db:backup
 ```
 
 ## Credenciales de administrador (RFC11)

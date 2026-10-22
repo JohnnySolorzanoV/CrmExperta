@@ -5,21 +5,25 @@ set -euo pipefail
 
 : "${DATABASE_URL:?Defina DATABASE_URL para hacer el respaldo}"
 
-# Ejecuta un binario de PostgreSQL: prefiere el del host; si no existe, lo
-# ejecuta dentro del contenedor indicado por PG_CONTAINER (p. ej. crm-pg-test).
+# Ejecuta un binario de PostgreSQL: prefiere el del host; para una base local
+# puede usar PG_CONTAINER y para una base externa usa un cliente efimero.
 pg_tool() {
   local bin="$1"; shift
   if command -v "$bin" >/dev/null 2>&1; then
     "$bin" "$@"
-  else
-    [ -n "${PG_CONTAINER:-}" ] || { echo "No se encontro '$bin' en el host y no se definio PG_CONTAINER" >&2; exit 1; }
+  elif [ -n "${PG_CONTAINER:-}" ]; then
     docker exec -i "$PG_CONTAINER" "$bin" "$@"
+  elif command -v docker >/dev/null 2>&1; then
+    docker run --rm -i "${PG_IMAGE:-postgres:16-alpine}" "$bin" "$@"
+  else
+    echo "No se encontro '$bin' en el host; defina PG_CONTAINER o instale/inicie Docker" >&2
+    exit 1
   fi
 }
 
-# Dentro del contenedor no existe el puerto expuesto por el host; Postgres
-# escucha en 5432, asi que se reescribe la URL solo cuando se ejecuta ahi.
-if ! command -v pg_dump >/dev/null 2>&1; then
+# Dentro del contenedor de la base local no existe el puerto expuesto por el
+# host; Postgres escucha en 5432, asi que se reescribe la URL solo ahi.
+if ! command -v pg_dump >/dev/null 2>&1 && [ -n "${PG_CONTAINER:-}" ]; then
   PG_URL="$(printf '%s' "$DATABASE_URL" | sed -E 's#(localhost|127\.0\.0\.1):[0-9]+#localhost:'"${PG_INTERNAL_PORT:-5432}"'#')"
 else
   PG_URL="$DATABASE_URL"

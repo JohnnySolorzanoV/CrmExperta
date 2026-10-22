@@ -157,7 +157,7 @@ describe('Integracion /api/citas', () => {
   })
 
   it('RF05-03 POST /api/citas rechaza una hora fuera del horario de atencion', async () => {
-    var franjaInvalida = proximaFranjaLaborable({ hora: 22, minuto: 30 })
+    var franjaInvalida = proximaFranjaLaborable({ hora: 18, minuto: 30 })
     var r = await request(APP)
       .post('/api/citas')
       .set('Authorization', 'Bearer ' + tokenCliente)
